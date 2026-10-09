@@ -1,0 +1,21 @@
+name: criteo-journey
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pyarrow
+  - pyyaml
+  - tqdm
+  - jupyterlab
+  - pytest
+  - pip
+  - pip:
+      - hmmlearn
+      - tensorboard
+      - einops
+      - torchmetrics

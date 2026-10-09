@@ -1,0 +1,40 @@
+project:
+  name: criteo_customer_journey
+  seed: 42
+
+data:
+  raw_path: data/raw/
+  processed_path: data/processed/
+  user_column: uid
+  timestamp_column: timestamp
+  campaign_column: campaign
+  conversion_column: conversion
+  conversion_timestamp_column: conversion_timestamp
+  conversion_id_column: conversion_id
+
+windowing:
+  primary_hours: 12
+  comparison_hours:
+    - 6
+
+splits:
+  strategy: chronological
+  user_disjoint_evaluation: true
+
+training:
+  batch_size: 256
+  learning_rate: 0.001
+  epochs: 30
+
+evaluation:
+  conversion_metrics:
+    - pr_auc
+    - roc_auc
+    - balanced_accuracy
+    - f1
+    - binary_cross_entropy
+  campaign_metrics:
+    - precision_at_k
+    - recall_at_k
+    - f1
+    - binary_cross_entropy

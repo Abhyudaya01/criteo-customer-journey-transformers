@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Data: never commit raw or generated datasets
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/README.md
+
+# Model checkpoints / experiment logs
+checkpoints/
+wandb/
+mlruns/
+*.ckpt
+*.pt
+*.pth
+
+# Large generated results
+results/**/*.csv
+results/**/*.parquet
+results/**/*.npy
+results/**/*.npz
+
+# Local logs
+logs/
+*.log
