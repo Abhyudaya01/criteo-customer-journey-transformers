@@ -5,8 +5,9 @@ Examples (run from the repo root):
     # 1) Verify the header/separator/timestamp unit against configs/base.yaml (fast)
     python scripts/prepare_criteo.py --check-only
 
-    # 2) Quick smoke run on the first 500k rows
-    python scripts/prepare_criteo.py --nrows 500000 --tag smoke
+    # 2) Quick smoke run on ~2% of users across all 30 days (recommended for testing)
+    python scripts/prepare_criteo.py --user-sample 50 --all-windows --tag smoke
+    #    (--nrows 500000 also works, but the file is time-sorted: that is only the first ~1 day)
 
     # 3) Full run for the primary (12h) and comparison (6h) windows
     python scripts/prepare_criteo.py --all-windows
@@ -136,6 +137,8 @@ def main() -> None:
     p.add_argument("--nrows", type=int, default=None, help="read only the first N rows (smoke test)")
     p.add_argument("--tag", default="", help="suffix for the output folder")
     p.add_argument("--check-only", action="store_true", help="verify schema and exit")
+    p.add_argument("--user-sample", type=int, default=None, metavar="K",
+                   help="keep only users with uid %% K == 0 (e.g. 50 -> ~2%% of users, all windows)")
     p.add_argument("--n-shards", type=int, default=8, help="user shards processed one at a time")
     args = p.parse_args()
 
@@ -159,7 +162,10 @@ def main() -> None:
     raw = load_criteo(raw_path, sep=sep, cols=cols, nrows=args.nrows)
     print(f"Loaded {len(raw):,} rows from {source_name(raw_path)} in {time.time() - t0:.0f}s")
 
-    unit = infer_timestamp_unit(raw, cols)
+    if args.user_sample:
+        raw = raw[raw[cols.user] % args.user_sample == 0].reset_index(drop=True)
+        print(f"User sample 1/{args.user_sample}: kept {len(raw):,} rows")
+    unit = infer_timestamp_unit(raw, cols, strict=args.nrows is None)
     vocab = build_campaign_vocab(raw, cols)
     shards = shard_ids(raw[cols.user], args.n_shards, seed)
     max_inactive = win.get("max_inactive_hours", 168)
@@ -197,7 +203,7 @@ def main() -> None:
         meta = finalize_meta(meta)
         meta["splits"] = {"boundaries": bounds.as_dict(), **counts}
         meta.update({"seed": seed, "n_shards": args.n_shards, "source_file": source_name(raw_path),
-                     "nrows": args.nrows})
+                     "nrows": args.nrows, "user_sample": args.user_sample})
         (out_dir / "meta.json").write_text(json.dumps(meta, indent=2))
         print(f"\n[{hours:g}h] built in {time.time() - t1:.0f}s -> {out_dir.relative_to(REPO_ROOT)}")
         print(json.dumps({k: v for k, v in meta.items()

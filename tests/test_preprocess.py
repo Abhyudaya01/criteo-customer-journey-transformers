@@ -130,3 +130,15 @@ def test_user_sharding_matches_full_build(raw):
                                             n_windows=n, timestamp_unit="seconds")["positions"])
     sharded = pd.concat(parts).sort_values(["uid", "window"]).reset_index(drop=True)
     pd.testing.assert_frame_equal(full["positions"], sharded)
+
+
+def test_timestamp_check_partial_read_warns_not_fails(raw):
+    import warnings
+    from src.data.preprocess import infer_timestamp_unit
+    first_day = raw[raw.timestamp < 86400]
+    with pytest.raises(ValueError):
+        infer_timestamp_unit(first_day)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert infer_timestamp_unit(first_day, strict=False) == "seconds"
+        assert w

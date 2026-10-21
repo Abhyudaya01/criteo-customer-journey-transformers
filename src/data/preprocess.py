@@ -29,6 +29,7 @@ from pathlib import Path
 import argparse
 import json
 import math
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -126,20 +127,24 @@ def validate_schema(columns: list[str], cols: DataColumns | None = None) -> None
 
 
 def infer_timestamp_unit(df: pd.DataFrame, cols: DataColumns | None = None,
-                         expected_days: float = 30.0) -> str:
+                         expected_days: float = 30.0, strict: bool = True) -> str:
     """Return 'seconds' if the impression span looks like ~30 days of seconds.
 
     The dataset page documents ``time_since_last_click`` in seconds and says timestamps
     start at 0, but does not state the unit of ``timestamp``. We check it rather than assume.
+    The full file spans 30.92 days. With ``strict=False`` (partial reads such as ``--nrows``,
+    where the time-sorted file covers only the first hours or days) a short span only warns.
     """
     cols = cols or DataColumns()
     span_days = (df[cols.timestamp].max() - df[cols.timestamp].min()) / 86400
     if 0.5 * expected_days <= span_days <= 1.5 * expected_days:
         return "seconds"
-    raise ValueError(
-        f"Impression span is {span_days:.2f} days if timestamps are seconds; expected about "
-        f"{expected_days}. Check the timestamp unit before windowing."
-    )
+    msg = (f"Impression span is {span_days:.2f} days if timestamps are seconds; expected about "
+           f"{expected_days}. Check the timestamp unit before windowing.")
+    if not strict and span_days < 1.5 * expected_days:
+        warnings.warn(msg + " Continuing because this is a partial read.", stacklevel=2)
+        return "seconds"
+    raise ValueError(msg)
 
 
 def sort_events(df: pd.DataFrame, cols: DataColumns | None = None) -> pd.DataFrame:

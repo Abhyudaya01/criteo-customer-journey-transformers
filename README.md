@@ -32,10 +32,14 @@ The primary research direction adapts the heterogeneous multi-head self-attentio
 ## Primary dataset
 
 **Criteo Attribution Modeling for Bidding**
-- ~30 days of advertising traffic
-- ~16.5 million impressions
-- ~45,000 conversions
-- ~700 anonymized campaigns
+Measured on the full file (`criteo_attribution_dataset.tsv.gz`):
+- 30.92 days of advertising traffic (62 twelve-hour / 124 six-hour windows)
+- 16,468,027 impressions from 6,142,256 users
+- 438,730 distinct conversions (by user + `conversion_id`; 236,331 attributed to Criteo)
+- 675 anonymized campaigns
+
+Note: the dataset page quotes ~45K conversions and ~700 campaigns; the counts above are what
+the file actually contains. See `docs/design_notes.md` §1 for the full-data statistics.
 
 The raw dataset should **not** be committed to GitHub. Download it separately and place it under `data/raw/`.
 

@@ -5,11 +5,11 @@
 #   mkdir -p logs && sbatch scripts/zaratan/prepare_criteo.sbatch
 # Check:  squeue -u $USER      Log: logs/prepare_criteo-<jobid>.out
 #
-# Before the first run, fill in your allocation account below (find it with `sbalance`
-# or `sacctmgr show assoc user=$USER format=account%30`), and confirm the partition name
-# with `sinfo -s` (CPU jobs normally go to the standard partition).
+# Account is the DATA612 class allocation (check with `sbalance`). Submit from a shell where
+# `conda activate criteo-journey` works. The standard queue can wait hours; for a faster
+# path use the debug partition (see docs/design_notes.md section 7).
 #SBATCH --job-name=prepare_criteo
-#SBATCH --account=CHANGE_ME
+#SBATCH --account=msml612-class
 #SBATCH --partition=standard
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

@@ -44,14 +44,15 @@ they had an impression in the last `max_inactive_hours` (default 168 h = 7 days)
 looks only backwards, so sample selection can never peek at labels (a test injects future
 conversions and checks the position set does not change). Lu & Kannan also include
 inactive periods in the sequence; the 7-day cap keeps the table from exploding with
-millions of one-impression users. Check `frac_conversion_windows_covered` in `meta.json`
-after the first real run and raise the cap if it drops too low.
+millions of one-impression users. On the full data it covers 68% of conversion windows
+(see the statistics below); raising the cap is an open team decision.
 
 ### Splits (`src/data/splits.py`)
 Every position is assigned by its **label window** (*t+1*), so no label ever crosses a
 boundary. Inputs may look back into earlier periods (normal forecasting).
 
-* **Chronological**: label windows 1–41 train, 42–50 val, 51–59 test (12 h; 70/15/15).
+* **Chronological**: label windows 1–43 train, 44–52 val, 53–61 test (12 h; 70/15/15).
+  At 6 h: 1–86 train, 87–104 val, 105–123 test.
 * **User-disjoint**: users hashed 70/15/15 into train/val/test. Hashing (not shuffling)
   keeps a user in the same group for 6 h and 12 h runs. Two variants are available:
   `user_disjoint` (all windows, like Lu & Kannan's holdout customers) and
@@ -62,8 +63,31 @@ boundary. Inputs may look back into earlier periods (normal forecasting).
   since the previous one cannot appear. Conversion labels are a lower bound.
 * Conversions after the last impression window are dropped (no window to predict from).
 * The final window may be partial; `cost`/`cpo` are transformed, not real prices.
-* Positive rate will be very low (likely well under 1% of positions). PR-AUC is the
-  primary metric for that reason.
+* About 20% of conversions (87,127 of 438,730) happen after the last impression window and
+  are dropped.
+* 2,920 `conversion_id`s appear under more than one `uid` (0.7%); conversions are counted
+  per (uid, conversion_id).
+* The positive rate is 0.18% of positions at 12 h (1 in ~545). PR-AUC is the primary metric,
+  and training needs class weighting or negative subsampling.
+
+### Full-data statistics (`meta.json`, 21 Oct 2026 run on Zaratan)
+
+| | 12 h | 6 h |
+|---|---|---|
+| Windows | 62 | 124 |
+| Impressions / users / campaigns | 16,468,027 / 6,142,256 / 675 | same |
+| Distinct conversions (all / within window range) | 438,730 / 351,603 | same |
+| Prediction positions | 125,971,114 | 247,454,311 |
+| Positive positions (conversion in t+1) | 231,004 (0.18%) | 236,046 (0.095%) |
+| Positions with ≥1 campaign in t+1 | 6,282,704 (5.0%) | 6,532,917 (2.6%) |
+| Conversion windows covered by a position | 68.1% | 69.3% |
+| Build time (debug partition, 4 CPUs) | 177 s | 331 s |
+
+Chronological split, 12 h: train 85.4M positions / 158,834 positives; val 20.4M / 34,430;
+test 20.1M / 37,740. User-disjoint, 12 h: 4,251,897 / 910,766 / 910,553 users.
+
+Going from 12 h to 6 h doubles the positions but barely adds positives (231K → 236K), so the
+6 h task is about twice as sparse. That is worth stating in the window-length ablation.
 
 ---
 
@@ -92,7 +116,7 @@ pretraining exists, so it lives or dies with the contrastive work.
 | Token | a patch of time steps of **one** channel | the **whole lookback of one variable** (campaign, conversion, …) |
 | Attention across | time patches | variables |
 | Cross-campaign effects | none by design (channel independence) | exactly what it models |
-| Fit to our sequences | weak: 60 windows (12 h) → a handful of patches, mostly zeros for sparse users | fine: lookback of 60 is an MLP input per variable |
+| Fit to our sequences | weak: 62 windows (12 h) → a handful of patches, mostly zeros for sparse users (users average <3 impressions) | fine: lookback of 62 is an MLP input per variable |
 | Interpretability | patch-to-patch maps | campaign × campaign attention maps |
 | Overlap with Lu & Kannan | both attend over time | complementary (L&K: time; iTransformer: campaigns) |
 
@@ -101,7 +125,7 @@ are short and sparse, and the research question is about cross-campaign relation
 channel-independent PatchTST cannot express. iTransformer gives a clean contrast to the
 time-attention Lu & Kannan model.
 
-Practical notes for iTransformer: 700 variable tokens per sample gives 700² attention, so
+Practical notes for iTransformer: 675 variable tokens per sample gives 675² attention, so
 use the top ~100 campaigns by training-period impressions plus one "other" token, plus
 tokens for conversions, clicks and cost. It is not causal over time, so each (user, t) is a
 separate sample with a fixed lookback; subsample positions per epoch if training is slow.
@@ -127,7 +151,7 @@ loss = BCE(conv, pos_weight) + λ · BCE(campaigns), only on positions in the sp
 Choices worth deciding as a group:
 
 * **Separate encoders per target.** Lu & Kannan use one encoder per target, which is
-  infeasible for 700 campaigns. Use two task branches (conversion, campaign) on a shared
+  infeasible for 675 campaigns. Use two task branches (conversion, campaign) on a shared
   trunk. This keeps their idea and stays cheap.
 * **Customer head weights ω_n.** Lu & Kannan learn a free θ_n per user and give unseen
   users the population mean. On Criteo most users have very short histories, so per-user
@@ -184,7 +208,7 @@ Reporting practices (no extra code needed):
 
 | Dataset | What it is | User journey across windows? | Campaign/channel analogue | Verdict |
 |---|---|---|---|---|
-| **Criteo Attribution** | 30 days, ~16.5M impressions, ~45K conversions, ~700 campaigns | yes (`uid`) | campaigns | **Primary** |
+| **Criteo Attribution** | 30.9 days, 16.5M impressions, 6.1M users, 439K conversions, 675 campaigns | yes (`uid`) | campaigns | **Primary** |
 | Retailrocket (Kaggle) | ~4.5 months of e-commerce events (view, add-to-cart, transaction), hashed ids | yes (`visitorid`) | event types / item categories | Best secondary if Tier 3 happens |
 | Taobao UserBehavior (Tianchi) | ~1M users, 25 Nov–3 Dec 2017; click, cart, favorite, purchase | yes, but only 9 days (18 windows at 12 h) | behavior types / categories | Large; short span; needs Tianchi login to download |
 | YOOCHOOSE (RecSys 2015) | 6 months of click sessions, some with buys | **no persistent user id**: session-level only | none | Drop: cannot build multi-window journeys or a user-disjoint split |
@@ -195,29 +219,46 @@ closest fit (persistent visitor id, real conversions, a long enough span for 12 
 
 ---
 
-## 7. Zaratan runbook
+## 7. Zaratan runbook (tested 21 Oct 2026)
+
+Zaratan has no conda module (only plain Python 3.8/3.10), and home quota is ~9.8 GB, so:
+Miniforge goes in home, and large outputs go to your class scratch folder
+`/scratch/zt1/project/msml612/user/<your-id>` (also reachable as `~/scratch`).
 
 ```bash
-# once: put the repo on scratch (home quota is small), create the env
-cd <your scratch dir>
+# 1) one-time: conda (Miniforge, ~8 GB with our env) + caches on scratch
+cd ~
+curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh -b -p ~/miniforge3 && rm Miniforge3-Linux-x86_64.sh
+~/miniforge3/bin/conda init bash && source ~/.bashrc
+echo 'export HF_HOME=~/scratch/hf_cache PIP_CACHE_DIR=~/scratch/pip_cache' >> ~/.bashrc
+
+# 2) one-time: code + environment
 git clone https://github.com/Abhyudaya01/criteo-customer-journey-transformers.git
 cd criteo-customer-journey-transformers
-git checkout feature/criteo-preprocessing
-conda env create -f environment.yml           # load the cluster's conda module first if needed
+git checkout feature/criteo-preprocessing      # or main once merged
+conda env create -f environment.yml && conda activate criteo-journey
+conda clean -a -y && rm -rf ~/.cache/pip         # frees ~3 GB of home quota
+pytest -q                                      # 25 passed
 
-# data (login node is fine for a single download)
-bash scripts/download_criteo.sh
-python scripts/prepare_criteo.py --check-only # header, separator, timestamp unit
+# 3) one-time: send processed outputs to scratch
+mkdir -p ~/scratch/criteo_processed
+rm -f data/processed/.gitkeep && rmdir data/processed
+ln -s ~/scratch/criteo_processed data/processed
 
-# build 12 h + 6 h on a compute node (edit --account first)
-mkdir -p logs && sbatch scripts/zaratan/prepare_criteo.sbatch
-squeue -u $USER; tail -f logs/prepare_criteo-*.out
+# 4) data (login node is fine)
+bash scripts/download_criteo.sh                # 623 MB
+python scripts/prepare_criteo.py --check-only  # 22 columns, schema True, seconds, 30.92 days
+
+# 5) build (debug partition starts in seconds; each run fits its 15-min limit)
+srun -A msml612-class -p debug -t 15 -c 4 --mem=48G python scripts/prepare_criteo.py --hours 12   # ~3 min
+srun -A msml612-class -p debug -t 15 -c 4 --mem=48G python scripts/prepare_criteo.py --hours 6    # ~6 min
+# quick test instead: add  --user-sample 50 --tag smoke
+# alternative: mkdir -p logs && sbatch scripts/zaratan/prepare_criteo.sbatch  (standard queue can wait hours)
 ```
 
-`environment.yml` has no PyTorch yet; add the CUDA build that matches Zaratan's GPU module
-before model training.
+Check quota with `quota -s` (the `*` and grace column mean over quota) and the account with
+`sbalance`. Do not run `du` on `/scratch/zt1/project/` as a whole; it walks every group.
 
-After the first real run, paste `meta.json` (both window sizes) into the interim report:
-number of users, positions, positive rate, share of positions with a next-window campaign,
-and conversion coverage. Those numbers settle `max_inactive_hours` and the top-K campaign
-cut-off.
+`environment.yml` has no PyTorch yet; add the CUDA build that matches Zaratan's GPU module
+(`module avail cuda`, partitions `gpu-a100` / `gpu-h100`) before model training.
