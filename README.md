@@ -66,6 +66,18 @@ chronological train/validation/test split
       +--> user-disjoint evaluation
 ```
 
+### Running it
+
+```bash
+bash scripts/download_criteo.sh                 # -> data/raw/
+python scripts/prepare_criteo.py --check-only   # verify columns/separator/timestamp unit
+python scripts/prepare_criteo.py --all-windows  # -> data/processed/criteo_w12h/, criteo_w6h/
+pytest                                          # window, label and split-leakage tests
+```
+
+See [`docs/design_notes.md`](docs/design_notes.md) for table definitions, leakage rules,
+split boundaries, scope tiers and the architecture proposal.
+
 ## Evaluation
 
 ### Conversion prediction
