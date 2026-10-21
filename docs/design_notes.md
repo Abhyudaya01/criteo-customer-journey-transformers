@@ -9,7 +9,7 @@ below is a proposal for the group to agree on, not a final decision.
 ## 1. Data pipeline (implemented on `feature/criteo-preprocessing`)
 
 ### Source file
-`criteo_attribution_dataset.tsv.gz` from the official Criteo release: **tab separated,
+`criteo_attribution_dataset.tsv.gz`, loaded from Hugging Face (`hf://datasets/criteo/criteo-attribution-dataset/...`, the same file as the official Criteo release): **tab separated,
 gzip, with a header row**, one row per impression, 22 columns:
 
 | Group | Columns | How we use them |

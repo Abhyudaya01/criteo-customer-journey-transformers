@@ -6,7 +6,9 @@ data:
   raw_path: data/raw/
   # Official release: criteo_attribution_dataset.tsv.gz (tab separated, gzip, has a header row).
   # Column names below match the documented schema; scripts/prepare_criteo.py --check-only verifies them.
-  raw_file: criteo_attribution_dataset/criteo_attribution_dataset.tsv.gz
+  raw_file: criteo_attribution_dataset/criteo_attribution_dataset.tsv.gz   # local copy (preferred)
+  # Used when no local copy exists: pd.read_csv(hf_path, sep="\t") via huggingface_hub
+  hf_path: hf://datasets/criteo/criteo-attribution-dataset/criteo_attribution_dataset.tsv.gz
   separator: "\t"
   interim_path: data/interim/
   processed_path: data/processed/

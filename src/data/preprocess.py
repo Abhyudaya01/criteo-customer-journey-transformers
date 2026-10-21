@@ -33,6 +33,9 @@ import math
 import numpy as np
 import pandas as pd
 
+# Hugging Face copy of the official release (same file, read via pandas + huggingface_hub/fsspec).
+HF_CRITEO_PATH = "hf://datasets/criteo/criteo-attribution-dataset/criteo_attribution_dataset.tsv.gz"
+
 # Documented column order of criteo_attribution_dataset.tsv.gz (tab separated, gzip).
 CRITEO_COLUMNS = [
     "timestamp", "uid", "campaign", "conversion", "conversion_timestamp", "conversion_id",
@@ -84,9 +87,13 @@ class DataColumns:
 # Loading and validation
 # --------------------------------------------------------------------------------------
 
-def load_criteo(path: Path, sep: str = "\t", cols: DataColumns | None = None,
+def load_criteo(path: Path | str = HF_CRITEO_PATH, sep: str = "\t", cols: DataColumns | None = None,
                 nrows: int | None = None, extra_columns: list[str] | None = None) -> pd.DataFrame:
     """Load the raw Criteo attribution file (``.tsv`` or ``.tsv.gz``; compression inferred).
+
+    ``path`` can be a local file or the Hugging Face URI (default), i.e. the equivalent of
+    ``pd.read_csv("hf://datasets/criteo/criteo-attribution-dataset/criteo_attribution_dataset.tsv.gz", sep="\t")``.
+    Reading ``hf://`` needs ``huggingface_hub`` installed.
 
     Only the columns the pipeline needs are read, with compact dtypes, so the full
     16.5M-row file fits comfortably in a 16 GB job.

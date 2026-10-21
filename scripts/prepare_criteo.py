@@ -39,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.data.preprocess import (  # noqa: E402
-    CRITEO_COLUMNS, DataColumns, build_campaign_vocab, build_windowed_dataset, finalize_meta,
+    CRITEO_COLUMNS, HF_CRITEO_PATH, DataColumns, build_campaign_vocab, build_windowed_dataset, finalize_meta,
     infer_timestamp_unit, load_criteo, n_windows_for, validate_schema, write_table,
 )
 
@@ -53,19 +53,25 @@ from src.data.splits import (  # noqa: E402
 )
 
 
-def find_raw_file(cfg: dict, override: Path | None) -> Path:
+def find_raw_file(cfg: dict, override: str | None) -> Path | str:
+    """Local copy under data/raw/ if present (fast, works on compute nodes without internet),
+    otherwise the Hugging Face path from the config."""
     if override:
-        return override
+        return override if str(override).startswith("hf://") else Path(override)
     data = cfg["data"]
     candidate = REPO_ROOT / data["raw_path"] / data.get("raw_file", "")
     if candidate.is_file():
         return candidate
     hits = sorted((REPO_ROOT / data["raw_path"]).rglob("criteo_attribution_dataset.tsv*"))
-    if not hits:
-        raise FileNotFoundError(
-            f"No criteo_attribution_dataset.tsv(.gz) under {REPO_ROOT / data['raw_path']}. "
-            "Run scripts/download_criteo.sh first.")
-    return hits[0]
+    if hits:
+        return hits[0]
+    hf = data.get("hf_path", HF_CRITEO_PATH)
+    print(f"No local copy under {data['raw_path']}; reading {hf}")
+    return hf
+
+
+def source_name(path) -> str:
+    return str(path) if str(path).startswith("hf://") else Path(path).name
 
 
 def check_schema(path: Path, sep: str, cols: DataColumns) -> None:
@@ -123,7 +129,8 @@ def shard_ids(uids: pd.Series, n_shards: int, seed: int):
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--config", type=Path, default=REPO_ROOT / "configs" / "base.yaml")
-    p.add_argument("--input", type=Path, default=None, help="raw file (default: found under data/raw/)")
+    p.add_argument("--input", default=None,
+                   help="local file or hf:// path (default: data/raw/ copy, else the Hugging Face path)")
     p.add_argument("--hours", type=float, nargs="*", default=None, help="window lengths (default: primary)")
     p.add_argument("--all-windows", action="store_true", help="primary + comparison window lengths")
     p.add_argument("--nrows", type=int, default=None, help="read only the first N rows (smoke test)")
@@ -150,7 +157,7 @@ def main() -> None:
 
     t0 = time.time()
     raw = load_criteo(raw_path, sep=sep, cols=cols, nrows=args.nrows)
-    print(f"Loaded {len(raw):,} rows from {raw_path.name} in {time.time() - t0:.0f}s")
+    print(f"Loaded {len(raw):,} rows from {source_name(raw_path)} in {time.time() - t0:.0f}s")
 
     unit = infer_timestamp_unit(raw, cols)
     vocab = build_campaign_vocab(raw, cols)
@@ -189,7 +196,7 @@ def main() -> None:
         meta["n_campaigns"] = int(len(vocab))
         meta = finalize_meta(meta)
         meta["splits"] = {"boundaries": bounds.as_dict(), **counts}
-        meta.update({"seed": seed, "n_shards": args.n_shards, "source_file": raw_path.name,
+        meta.update({"seed": seed, "n_shards": args.n_shards, "source_file": source_name(raw_path),
                      "nrows": args.nrows})
         (out_dir / "meta.json").write_text(json.dumps(meta, indent=2))
         print(f"\n[{hours:g}h] built in {time.time() - t1:.0f}s -> {out_dir.relative_to(REPO_ROOT)}")

@@ -19,3 +19,4 @@ dependencies:
       - tensorboard
       - einops
       - torchmetrics
+      - huggingface_hub   # pandas reads hf:// paths through it
