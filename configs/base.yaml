@@ -4,22 +4,41 @@ project:
 
 data:
   raw_path: data/raw/
+  # Official release: criteo_attribution_dataset.tsv.gz (tab separated, gzip, has a header row).
+  # Column names below match the documented schema; scripts/prepare_criteo.py --check-only verifies them.
+  raw_file: criteo_attribution_dataset/criteo_attribution_dataset.tsv.gz   # local copy (preferred)
+  # Used when no local copy exists: pd.read_csv(hf_path, sep="\t") via huggingface_hub
+  hf_path: hf://datasets/criteo/criteo-attribution-dataset/criteo_attribution_dataset.tsv.gz
+  separator: "\t"
+  interim_path: data/interim/
   processed_path: data/processed/
   user_column: uid
-  timestamp_column: timestamp
+  timestamp_column: timestamp            # starts at 0; unit checked at runtime (expected: seconds)
   campaign_column: campaign
-  conversion_column: conversion
-  conversion_timestamp_column: conversion_timestamp
-  conversion_id_column: conversion_id
+  conversion_column: conversion          # label-only (future info on an impression row)
+  conversion_timestamp_column: conversion_timestamp   # -1 if no conversion; label-only
+  conversion_id_column: conversion_id    # -1 if no conversion; label-only
+  click_column: click
+  cost_column: cost
+  # Never use these as model inputs: they describe a conversion after the impression.
+  leaky_columns: [conversion, conversion_timestamp, conversion_id, attribution, click_pos, click_nb, cpo]
 
 windowing:
   primary_hours: 12
   comparison_hours:
     - 6
+  horizon_windows: 1          # predict window t+1 from windows <= t
+  # A user is a prediction position at window t if they had an impression within the last
+  # max_inactive_hours (backward-looking only, so sample selection cannot see labels).
+  max_inactive_hours: 168
 
 splits:
-  strategy: chronological
+  strategy: chronological      # by label-window index; labels never cross a boundary
+  train_frac: 0.70             # fractions of label windows
+  val_frac: 0.15
   user_disjoint_evaluation: true
+  user_train_frac: 0.70        # fractions of users (hash-assigned, stable across window sizes)
+  user_val_frac: 0.15
 
 training:
   batch_size: 256
@@ -33,8 +52,14 @@ evaluation:
     - balanced_accuracy
     - f1
     - binary_cross_entropy
+    - top_decile_lift
+    - gain_at_10
+    - expected_calibration_error
   campaign_metrics:
     - precision_at_k
     - recall_at_k
+    - hit_rate_at_k
+    - ndcg_at_k
     - f1
     - binary_cross_entropy
+  k_values: [1, 5, 10]
