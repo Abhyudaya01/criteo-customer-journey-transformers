@@ -1,0 +1,17 @@
+MMM extension — DeepCausalMMM on PySiMMMulator synthetic data
+Data: 208 weeks, 4 channels (Display, TV, Video, Search), DATA_SEED=42
+Split: train 146 / val 31 / holdout 31 weeks (chronological)
+Seeds: [0, 1, 2, 3, 4]
+
+Holdout R²:   -0.622 ± 0.044
+Holdout RMSE: 11,948,581 ± 161,370 (41.3% of mean holdout weekly revenue)
+Train R²:     0.103 ± 0.006
+
+Channel ROI (true vs estimated, mean ± std over seeds):
+  Display  true   9.878 | est   1.221 ± 0.500 | abs err 8.658
+  TV       true  -0.531 | est   3.832 ± 1.089 | abs err 4.363
+  Video    true   1.141 | est   5.254 ± 0.764 | abs err 4.112
+  Search   true   8.030 | est   3.896 ± 0.382 | abs err 4.134
+Mean abs ROI error 5.317; Spearman rank agreement -0.40
+
+Versions: {'python': '3.13.16', 'torch': '2.11.0+cpu', 'numpy': '1.26.4', 'pandas': '2.2.3', 'pysimmmulator': '0.6.2', 'deepcausalmmm': '1.0.21', 'device': 'cpu'}

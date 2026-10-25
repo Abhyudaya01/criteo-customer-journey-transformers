@@ -1,0 +1,9 @@
+{
+  "python": "3.13.16",
+  "torch": "2.11.0+cpu",
+  "numpy": "1.26.4",
+  "pandas": "2.2.3",
+  "pysimmmulator": "0.6.2",
+  "deepcausalmmm": "1.0.21",
+  "device": "cpu"
+}
