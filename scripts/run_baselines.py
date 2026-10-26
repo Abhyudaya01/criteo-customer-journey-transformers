@@ -22,6 +22,15 @@ Writes results/tables/baselines_<dataset>.json and .md
 
 from __future__ import annotations
 
+import os
+
+# Cap BLAS/OpenMP threads before numpy loads. Zaratan nodes have 128 cores and a 256-thread
+# per-user limit on login nodes; uncapped, every process starts 128 threads. Inside a Slurm job
+# this uses the CPUs you asked for (--cpus-per-task / -c).
+_THREADS = os.environ.get("SLURM_CPUS_PER_TASK", "4")
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_var, _THREADS)
+
 from pathlib import Path
 import argparse
 import json
