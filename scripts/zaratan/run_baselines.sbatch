@@ -1,5 +1,5 @@
 #!/bin/bash
-# Non-sequential baselines on the full 12h dataset (CPU only, ~10-20 min, a few SU).
+# Non-sequential baselines on the full 12h dataset (CPU only, ~21 min, peak 18.4 GB, a few SU).
 #
 # Submit from the repo root with the conda env active:
 #   mkdir -p logs && sbatch scripts/zaratan/run_baselines.sbatch
@@ -12,8 +12,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=48G
-#SBATCH --time=01:00:00
+#SBATCH --mem=24G
+#SBATCH --time=00:45:00
 #SBATCH --output=logs/%x-%j.out
 
 set -euo pipefail

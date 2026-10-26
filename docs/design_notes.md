@@ -177,6 +177,25 @@ Choices worth deciding as a group:
    click and windows since active for conversion.
 A Transformer that does not beat (3) on PR-AUC is a finding worth reporting.
 
+**Full-data results, 12 h** (`results/tables/baselines_criteo_w12h.md`, test split):
+
+| Task | Best baseline | Chronological | User-disjoint |
+|---|---|---|---|
+| Conversion (base rate 0.19%) | gradient boosting | PR-AUC 0.0233, ROC-AUC 0.843, top-decile lift 5.3× | PR-AUC 0.0251, ROC-AUC 0.847, lift 5.4× |
+| Conversion | logistic regression | PR-AUC 0.0191, ROC-AUC 0.816 | PR-AUC 0.0198, ROC-AUC 0.819 |
+| Campaigns (top 10) | user history | HitRate@10 0.895, NDCG@10 0.833 | HitRate@10 0.873, NDCG@10 0.819 |
+| Campaigns | popularity | HitRate@10 0.191, NDCG@10 0.089 | HitRate@10 0.199, NDCG@10 0.098 |
+
+What this means for the Transformer:
+* **Conversion is where there is room.** The best baseline ranks well (top decile captures
+  53% of conversions) but PR-AUC is only 0.023, about 12× the base rate.
+* **Campaign prediction is close to saturated by history.** About 90% of next-window campaigns
+  are ones the user has already seen (Criteo is a retargeting platform). A sequence model can
+  only add much on the ~10% of cases with a campaign that is new to the user, so report those
+  separately rather than only the overall HitRate.
+* Chronological and user-disjoint results are close, so the features generalize to unseen users.
+* Cost: 21 min on 4 CPUs, 18.4 GB peak, for all 126M positions (job 23587289).
+
 ---
 
 ## 5. Metrics
