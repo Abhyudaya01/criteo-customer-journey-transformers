@@ -165,11 +165,12 @@ Choices worth deciding as a group:
   cheaper than one sample per position.
 * **Imbalance.** BCE with `pos_weight` around √(neg/pos), then temperature scaling on the
   validation set so the probabilities are calibrated (reported with ECE).
-* **Next step in code:** a PyTorch `Dataset` that turns one user's rows from
-  `window_campaigns` + `user_windows` into a padded `[T, …]` tensor plus a position mask
-  and labels. That is the bridge between this pipeline and every model.
+* **Sequence dataset (implemented, `src/data/dataset.py`):** one item per user with
+  `numeric [T, 6]`, campaign bags for `nn.EmbeddingBag`, `y_conversion [T]`, campaign
+  targets and a split `mask [T]`. `make_loader(load_sequences(...))` gives a PyTorch
+  DataLoader. Inputs span all T windows, so models **must** be causal (`causal_mask(T)`).
 
-### Baselines to add (cheap, and they keep the comparison honest)
+### Baselines (implemented in `src/models/baselines.py`, run with `scripts/run_baselines.py`)
 1. **Repeat-last**: campaigns of the user's last active window as next-window scores.
 2. **Popularity**: training-period campaign frequency.
 3. **Logistic regression / gradient boosting** on recency, frequency, clicks, time since last

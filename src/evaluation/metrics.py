@@ -160,3 +160,56 @@ def campaign_bce(y_true, probs, eps: float = 1e-7) -> float:
     y = np.asarray(y_true, dtype=float)
     p = np.clip(np.asarray(probs, dtype=float), eps, 1 - eps)
     return float(-(y * np.log(p) + (1 - y) * np.log(1 - p)).mean())
+
+
+# ------------------------------------------------------------------ sparse / score-only helpers
+
+def ranking_conversion_metrics(y_true, scores) -> dict[str, float]:
+    """Metrics that only need an ordering (for heuristics whose scores are not probabilities)."""
+    y_true = np.asarray(y_true)
+    scores = np.asarray(scores, dtype=float)
+    out = {
+        "pr_auc": float(average_precision_score(y_true, scores)),
+        "roc_auc": float(roc_auc_score(y_true, scores)),
+        "base_rate": float(y_true.mean()) if len(y_true) else 0.0,
+    }
+    out.update(top_fraction_metrics(y_true, scores, fraction=0.10, prefix="top_decile"))
+    return out
+
+
+def ranking_metrics_from_topk(topk, truth, ks=(1, 5, 10)) -> dict[str, float]:
+    """Campaign ranking metrics from top-K lists, without a dense [N, C] score matrix.
+
+    ``topk``: int array [N, Kmax] of campaign indices in rank order (-1 = empty slot).
+    ``truth``: sequence of N collections of true campaign indices (each non-empty).
+    Matches ``campaign_ranking_metrics(..., nonempty_only=True)`` on the same rows.
+    """
+    topk = np.asarray(topk)
+    n = len(truth)
+    out: dict[str, float] = {"n_positions": float(n)}
+    if n == 0:
+        return out
+    rel = np.zeros(topk.shape, dtype=float)
+    n_rel = np.empty(n, dtype=float)
+    for i, tr in enumerate(truth):
+        s = set(tr)
+        n_rel[i] = len(s)
+        row = topk[i]
+        rel[i] = [1.0 if (c >= 0 and c in s) else 0.0 for c in row]
+    for k in ks:
+        kk = min(k, topk.shape[1])
+        r = rel[:, :kk]
+        hits = r.sum(1)
+        discounts = 1.0 / np.log2(np.arange(2, kk + 2))
+        dcg = (r * discounts).sum(1)
+        ideal = np.array([discounts[: int(min(m, kk))].sum() for m in n_rel])
+        prec_at_i = np.cumsum(r, axis=1) / np.arange(1, kk + 1)
+        ap = (prec_at_i * r).sum(1) / np.minimum(n_rel, kk)
+        out.update({
+            f"precision_at_{k}": float(hits.sum() / (n * kk)),
+            f"recall_at_{k}": float(hits.sum() / n_rel.sum()),
+            f"hit_rate_at_{k}": float((hits > 0).mean()),
+            f"ndcg_at_{k}": float(np.mean(dcg / ideal)),
+            f"map_at_{k}": float(ap.mean()),
+        })
+    return out
