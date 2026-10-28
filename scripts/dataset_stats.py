@@ -329,7 +329,7 @@ def fig_campaign_concentration(s: dict, path: Path):
     cum = np.array(s["series"]["campaign_cumulative_impression_share"])
     x = np.arange(1, len(cum) + 1)
     ax.plot(x, cum, color=BLUE, lw=1.4)
-    for k in (10, 100):
+    for k in (10, 100):  # labelled points; full curve is in the JSON
         if k <= len(cum):
             ax.plot([k], [cum[k - 1]], "o", ms=5, color=BLUE, mec=SURFACE, mew=1.2)
             ax.annotate(f"top {k}: {cum[k - 1]:.0%}", (k, cum[k - 1]), xytext=(8, -12),
@@ -338,7 +338,7 @@ def fig_campaign_concentration(s: dict, path: Path):
     ax.set_xlabel("Campaigns ranked by impressions", color=INK_2, fontsize=8.5)
     ax.set_ylim(0, 1.02); ax.set_xlim(0, len(cum) + 5)
     _title(fig, "Concentration of impressions across campaigns",
-           f"{len(cum)} campaigns; motivates a top-K campaign vocabulary for iTransformer")
+           f"{len(cum)} campaigns ranked by total impressions over all windows")
     fig.tight_layout(rect=(0, 0, 1, 0.84))
     fig.savefig(path, dpi=200, facecolor=SURFACE); plt.close(fig)
 
