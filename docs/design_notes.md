@@ -47,6 +47,29 @@ inactive periods in the sequence; the 7-day cap keeps the table from exploding w
 millions of one-impression users. On the full data it covers 68% of conversion windows
 (see the statistics below); raising the cap is an open team decision.
 
+### Journey statistics (`scripts/dataset_stats.py`, 12 h; tables and figures in `results/`)
+
+| Per user | Mean | Median | P90 | P99 | Max |
+|---|---|---|---|---|---|
+| Impressions | 2.68 | 1 | 6 | 18 | 880 |
+| Active windows | 2.25 | 1 | 5 | 13 | 60 |
+| Journey span (windows, first to last active) | 12.20 | 1 | 42 | 59 | 62 |
+| Distinct campaigns | 1.27 | 1 | 2 | 4 | 16 |
+
+* 55.5% of users are active in a single window; 51.7% have one impression; 10.4% have 5+
+  active windows. 4.29% of users convert at least once.
+* Within a journey's span only 18.4% of windows are active; 89.2% of prediction positions have
+  no impression in the current window.
+* Next-window conversion rate is 0.373% when the user is active in window t vs 0.160% when not.
+* Conversion rate is stable across splits (train / val / test 0.186% / 0.169% / 0.188%), ranges
+  0.100%-0.488% per window, and differs by 12 h slot (0.137% vs 0.230%; timestamps are
+  anonymized, so the slot is relative, not a known time of day).
+* Campaign impressions are spread out: top 10 / 50 / 100 of 675 campaigns cover 18.6% / 45.2% /
+  60.8%. 16.2% of next-window campaigns are new to the user.
+
+Implication: most users have too little history for attention to exploit. Sequence models
+should be compared on the 10% of users with 5+ active windows as well as overall.
+
 ### Splits (`src/data/splits.py`)
 Every position is assigned by its **label window** (*t+1*), so no label ever crosses a
 boundary. Inputs may look back into earlier periods (normal forecasting).
@@ -126,9 +149,13 @@ channel-independent PatchTST cannot express. iTransformer gives a clean contrast
 time-attention Lu & Kannan model.
 
 Practical notes for iTransformer: 675 variable tokens per sample gives 675² attention, so
-use the top ~100 campaigns by training-period impressions plus one "other" token, plus
+keep a truncated campaign vocabulary plus one "other" token, plus
 tokens for conversions, clicks and cost. It is not causal over time, so each (user, t) is a
 separate sample with a fixed lookback; subsample positions per epoch if training is slow.
+Impressions are **not** concentrated in a few campaigns (top 10 / 50 / 100 campaigns cover
+only 19% / 45% / 61% of impressions), so a top-100 vocabulary would fold 39% of impressions
+into "other". Choose K from training-period counts; the all-period curve is `series.campaign_cumulative_impression_share` in
+`results/tables/dataset_stats_criteo_w12h.json` (e.g. the K that reaches 90%).
 
 ---
 
@@ -189,10 +216,10 @@ A Transformer that does not beat (3) on PR-AUC is a finding worth reporting.
 What this means for the Transformer:
 * **Conversion is where there is room.** The best baseline ranks well (top decile captures
   53% of conversions) but PR-AUC is only 0.023, about 12× the base rate.
-* **Campaign prediction is close to saturated by history.** About 90% of next-window campaigns
-  are ones the user has already seen (Criteo is a retargeting platform). A sequence model can
-  only add much on the ~10% of cases with a campaign that is new to the user, so report those
-  separately rather than only the overall HitRate.
+* **Campaign prediction is close to saturated by history.** 83.8% of next-window campaigns are
+  ones the user has already seen (Criteo is a retargeting platform); 16.2% are new to the user
+  (`dataset_stats`). A sequence model can only add much on those new-to-user cases, so report
+  them separately rather than only the overall HitRate.
 * Chronological and user-disjoint results are close, so the features generalize to unseen users.
 * Cost: 21 min on 4 CPUs, 18.4 GB peak, for all 126M positions (job 23587289).
 
