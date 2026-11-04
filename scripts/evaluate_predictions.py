@@ -182,6 +182,16 @@ def main() -> None:
                   "|---|---|---|---|"]
         for r in diffs.itertuples():
             lines.append(f"| {r.model} | {r.metric} | {format_ci(r.diff, r.ci_low, r.ci_high)} | {r.p_not_better:.3f} |")
+    lift = subs[subs.metric == "pr_auc_lift"].copy()
+    if not lift.empty:
+        lift["cell"] = [f"{r.point:.1f}x [{r.ci_low:.1f}, {r.ci_high:.1f}]" for r in lift.itertuples()]
+        lt = lift.pivot(index="model", columns="subgroup", values="cell")
+        lt = lt[[g for g in SUBGROUPS if g in lt.columns]]
+        lines += ["", "PR-AUC divided by the subgroup's base rate (1.0x = random ranking), 95% CI. "
+                      "PR-AUC rises with prevalence, so compare subgroups with this table, not the one above.", "",
+                  "| Model | " + " | ".join(lt.columns) + " |", "|---" * (len(lt.columns) + 1) + "|"]
+        for model, row in lt.iterrows():
+            lines.append(f"| {model} | " + " | ".join(row.fillna("")) + " |")
     lines += ["", "next_new_campaign uses the label window, so it is a descriptive slice, not a "
                   "segment selectable in advance."]
     (args.out_dir / f"conversion_summary_{tag}.md").write_text("\n".join(lines) + "\n")

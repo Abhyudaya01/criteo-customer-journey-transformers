@@ -79,3 +79,18 @@ def test_negative_subsample_keeps_ci_close_and_parallel_matches_serial():
     par, _ = user_bootstrap(y, {"m": s, "n": s * 2}, users, n_boot=10, seed=2, n_jobs=2)
     ser, _ = user_bootstrap(y, {"m": s, "n": s * 2}, users, n_boot=10, seed=2, n_jobs=1)
     assert np.allclose(par[["ci_low", "ci_high"]], ser[["ci_low", "ci_high"]])
+
+
+def test_pr_auc_lift_is_pr_auc_over_base_rate_and_one_for_random():
+    y, s, users = _data(n=30000, seed=12)
+    m = sorted_metrics(SortedPreds.build(y, s), metrics=("pr_auc", "pr_auc_lift", "base_rate"))
+    assert abs(m["pr_auc_lift"] - m["pr_auc"] / y.mean()) < 1e-9
+    rnd = np.random.default_rng(13).random(len(y))
+    ci, _ = user_bootstrap(y, {"random": rnd}, users, n_boot=50, seed=0, metrics=("pr_auc_lift",))
+    r = ci.iloc[0]
+    # Random ranking: AP sits slightly above the base rate in small samples (~1.07x here with
+    # ~900 positives; the excess shrinks as positives grow), far below any real model.
+    assert abs(r.point - average_precision_score(y, rnd) / y.mean()) < 1e-9
+    assert 0.9 < r.point < 1.2
+    good, _ = user_bootstrap(y, {"m": s}, users, n_boot=20, seed=0, metrics=("pr_auc_lift",))
+    assert good.iloc[0].ci_low > 3 * r.ci_high

@@ -8,6 +8,8 @@
 # Submit from the repo root with the conda env active:
 #   mkdir -p logs && sbatch scripts/zaratan/evaluate_predictions.sbatch chrono_test
 #   mkdir -p logs && sbatch scripts/zaratan/evaluate_predictions.sbatch user_test
+# Optional second argument = reference model for paired differences (default itransformer):
+#   sbatch scripts/zaratan/evaluate_predictions.sbatch chrono_test gbdt
 # Smoke test first (1% user sample or the smoke dataset, a few seconds):
 #   python scripts/evaluate_predictions.py --data-dir data/processed/criteo_w12h_smoke --n-boot 50
 #SBATCH --job-name=eval-preds
@@ -23,5 +25,6 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR}"
 SPLIT="${1:-chrono_test}"
+REF="${2:-itransformer}"
 python scripts/evaluate_predictions.py --data-dir data/processed/criteo_w12h --split "${SPLIT}" \
-    --reference itransformer --n-boot 1000 --subgroup-n-boot 500 --neg-frac 0.1 --n-jobs 8
+    --reference "${REF}" --n-boot 1000 --subgroup-n-boot 500 --neg-frac 0.1 --n-jobs 8

@@ -30,7 +30,10 @@ from typing import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-METRICS = ("pr_auc", "roc_auc", "top_decile_gain")
+METRICS = ("pr_auc", "pr_auc_lift", "roc_auc", "top_decile_gain")
+# pr_auc_lift = PR-AUC / base rate (1.0 = random ranking). PR-AUC grows with prevalence, so
+# subgroups with different base rates are only comparable through this ratio. Computed inside
+# each replicate (replicate PR-AUC / replicate base rate), so its CI is a proper bootstrap CI.
 
 
 @dataclass
@@ -66,9 +69,13 @@ def _metrics_from_sorted_weights(sp: SortedPreds, w: np.ndarray, metrics: Sequen
     P, N = tps[-1], fps[-1]
     nan = float("nan")
     out: dict[str, float] = {}
-    if "pr_auc" in metrics:
-        out["pr_auc"] = nan if P <= 0 else float(
+    if "pr_auc" in metrics or "pr_auc_lift" in metrics:
+        pr = nan if P <= 0 else float(
             np.sum(np.diff(np.r_[0.0, tps / P]) * (tps / np.maximum(tps + fps, 1e-300))))
+        if "pr_auc" in metrics:
+            out["pr_auc"] = pr
+        if "pr_auc_lift" in metrics:
+            out["pr_auc_lift"] = pr / (P / (P + N)) if P > 0 else nan
     if "roc_auc" in metrics:
         if P <= 0 or N <= 0:
             out["roc_auc"] = nan
