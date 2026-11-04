@@ -18,6 +18,15 @@ probabilities are corrected back before calibration metrics. Evaluation uses eve
 The F1 threshold is chosen on validation and applied to test.
 
 Writes results/tables/baselines_<dataset>.json and .md
+
+With ``--save-predictions DIR`` it also writes every test-set prediction in the shared format
+(results/predictions/README.md), one file per model x protocol, for
+scripts/evaluate_predictions.py:
+
+    DIR/<model>__seed<seed>__<chrono_test|user_test>.parquet   columns uid, window, score
+
+``recency_frequency`` is saved as model ``recency``. Use --neg-rate 0.01 to match the team's
+training sample (all positives + 1% of negatives).
 """
 
 from __future__ import annotations
@@ -45,6 +54,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from src.data.features import build_position_features, feature_matrix  # noqa: E402
 from src.data.io import load_meta, load_shard, shard_ids  # noqa: E402
+from src.data.preprocess import write_table  # noqa: E402
 from src.evaluation.metrics import (  # noqa: E402
     best_f1_threshold, conversion_metrics, ranking_conversion_metrics, ranking_metrics_from_topk,
 )
@@ -55,6 +65,7 @@ from src.models.baselines import (  # noqa: E402
 
 PROTOCOLS = {"chronological": "time_split", "user_disjoint": "user_group"}
 SPLITS = ("train", "val", "test")
+PRED_SPLIT_NAME = {"chronological": "chrono_test", "user_disjoint": "user_test"}
 
 
 def popularity_by_protocol(data_dir: Path, shards: list[int], meta: dict, n_campaigns: int) -> dict:
@@ -82,6 +93,8 @@ def main() -> None:
     ap.add_argument("--skip-campaign", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out-dir", type=Path, default=REPO_ROOT / "results" / "tables")
+    ap.add_argument("--save-predictions", type=Path, default=None, metavar="DIR",
+                    help="write test predictions for evaluate_predictions.py (e.g. results/predictions)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -96,7 +109,8 @@ def main() -> None:
     popular = {} if args.skip_campaign else popularity_by_protocol(data_dir, shards, meta, n_campaigns)
 
     train = {p: {"X": [], "y": []} for p in args.protocols}
-    evals = {p: {s: {"X": [], "y": [], "rf": []} for s in ("val", "test")} for p in args.protocols}
+    evals = {p: {s: {"X": [], "y": [], "rf": [], "uid": [], "window": []} for s in ("val", "test")}
+             for p in args.protocols}
     camp = {p: {s: {"topk": {}, "truth": []} for s in ("val", "test")} for p in args.protocols}
 
     for s in shards:
@@ -117,6 +131,7 @@ def main() -> None:
                 m = split == sp
                 e = evals[p][sp]
                 e["X"].append(X[m]); e["y"].append(y[m]); e["rf"].append(rf[m])
+                e["uid"].append(pos["uid"].to_numpy()[m]); e["window"].append(pos["window"].to_numpy()[m])
                 if args.skip_campaign:
                     continue
                 q = pos.loc[m & (pos["n_next_campaigns"].to_numpy() > 0), ["uid", "window"]]
@@ -150,6 +165,10 @@ def main() -> None:
             res["conversion"][name]["threshold_from_val"] = thr
             res["conversion"][name]["fit_seconds"] = round(time.time() - t1, 1)
             print(f"  [{p}] {name}: test PR-AUC {res['conversion'][name]['test']['pr_auc']:.4f}")
+            if args.save_predictions:
+                save_predictions(args.save_predictions, name, args.seed, p, ev["test"], probs["test"])
+        if args.save_predictions:
+            save_predictions(args.save_predictions, "recency", args.seed, p, ev["test"], ev["test"]["rf"])
         if not args.skip_campaign:
             for sp in ("val", "test"):
                 c = camp[p][sp]
@@ -165,6 +184,19 @@ def main() -> None:
     stem.with_suffix(".md").write_text(to_markdown(results, args.k))
     print(to_markdown(results, args.k))
     print(f"Saved {stem.with_suffix('.json')} and .md in {results['seconds']:.0f}s")
+
+
+def save_predictions(out_dir: Path, model: str, seed: int, protocol: str, ev: dict,
+                     scores: np.ndarray) -> Path:
+    """One row per test position: uid, window (anchor t), score. See results/predictions/README.md."""
+    out_dir = out_dir if out_dir.is_absolute() else REPO_ROOT / out_dir
+    df = pd.DataFrame({"uid": ev["uid"], "window": ev["window"].astype("int32"),
+                       "score": np.asarray(scores, dtype="float64")})
+    if df.duplicated(["uid", "window"]).any():
+        raise RuntimeError(f"{model}/{protocol}: duplicate (uid, window) test rows")
+    path = write_table(df, out_dir / f"{model}__seed{seed}__{PRED_SPLIT_NAME[protocol]}.parquet")
+    print(f"    saved {len(df):,} test predictions -> {path}")
+    return path
 
 
 def to_markdown(r: dict, ks) -> str:
