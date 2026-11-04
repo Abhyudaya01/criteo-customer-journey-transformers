@@ -47,3 +47,7 @@ results/**/*.npz
 # Local logs
 logs/
 *.log
+
+# Saved predictions (20M rows per file; keep on Zaratan scratch)
+results/predictions/*
+!results/predictions/README.md
