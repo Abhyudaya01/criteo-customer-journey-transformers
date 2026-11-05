@@ -60,6 +60,21 @@ def window_boundaries(n_windows: int, train_frac: float = 0.70, val_frac: float 
     return WindowBoundaries(first, val_start, test_start, n_windows)
 
 
+def aligned_boundaries(reference: WindowBoundaries, reference_hours: float, hours: float,
+                       n_windows: int, horizon: int = 1) -> WindowBoundaries:
+    """Boundaries for ``hours``-long windows that cut at the same clock times as ``reference``.
+
+    ``window_boundaries`` rounds fractions of label windows, so 6h and 12h windows would cut
+    at different hours (6h val would start at hour 522, 12h at 528). Window-length comparisons
+    need identical train/val/test periods, so comparison windows reuse the primary cut points.
+    """
+    ratio = reference_hours / hours
+    if abs(ratio - round(ratio)) > 1e-9:
+        raise ValueError(f"{reference_hours}h is not a whole multiple of {hours}h; cannot align")
+    r = int(round(ratio))
+    return WindowBoundaries(horizon, reference.val_start * r, reference.test_start * r, n_windows)
+
+
 def assign_chronological_split(df: pd.DataFrame, bounds: WindowBoundaries,
                                label_window_col: str = "label_window") -> pd.Series:
     """Return a 'train'/'val'/'test' label per row based on its label window."""

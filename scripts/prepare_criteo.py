@@ -59,7 +59,7 @@ SUMMED_META = ["n_impressions", "n_users", "n_conversions_total", "n_conversions
                "n_conversion_windows"]
 TABLES = ["window_campaigns", "user_windows", "conversions", "positions", "next_campaign_labels"]
 from src.data.splits import (  # noqa: E402
-    assign_chronological_split, user_groups, window_boundaries,
+    aligned_boundaries, assign_chronological_split, user_groups, window_boundaries,
 )
 
 
@@ -185,6 +185,14 @@ def main() -> None:
         s_cfg = cfg["splits"]
         bounds = window_boundaries(n_windows, s_cfg.get("train_frac", 0.70),
                                    s_cfg.get("val_frac", 0.15), horizon)
+        primary_h = win["primary_hours"]
+        if hours != primary_h:
+            # Cut at the same clock times as the primary window so 6h vs 12h compares the
+            # same train/val/test periods (rounding alone moves 6h cuts 6 hours earlier).
+            primary_bounds = window_boundaries(n_windows_for(raw, primary_h, cols),
+                                               s_cfg.get("train_frac", 0.70),
+                                               s_cfg.get("val_frac", 0.15), horizon)
+            bounds = aligned_boundaries(primary_bounds, primary_h, hours, n_windows, horizon)
         name = f"criteo_w{hours:g}h" + (f"_{args.tag}" if args.tag else "")
         out_dir = REPO_ROOT / cfg["data"]["processed_path"] / name
         write_table(vocab, out_dir / "campaign_vocab.parquet")
