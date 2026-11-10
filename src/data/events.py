@@ -166,18 +166,25 @@ def load_stajt_train_anchors(cache_dir: Path | str, neg_rate: float = 0.01,
 
 # ------------------------------------------------------------------ torch glue (lazy)
 
-def make_darnn_dataset(store: EventStore, anchors: Anchors, max_len: int = MAX_LEN):
-    """torch Dataset of ``darnn_item`` dicts as tensors (default collate stacks them)."""
-    import torch
-    from torch.utils.data import Dataset
+class DarnnDataset:
+    """Map-style dataset of ``darnn_item`` dicts as tensors; DataLoader's default collate stacks them.
 
-    class DarnnDataset(Dataset):
-        def __len__(self):
-            return len(anchors)
+    Defined at module level (not inside a function) so DataLoader workers can be started with
+    any multiprocessing method, not only fork.
+    """
 
-        def __getitem__(self, i):
-            it = darnn_item(store, anchors.uid[i], anchors.anchor_ts[i], anchors.y[i], max_len)
-            return {k: (torch.as_tensor(v) if not isinstance(v, int) else torch.tensor(v))
-                    for k, v in it.items()}
+    def __init__(self, store: EventStore, anchors: Anchors, max_len: int = MAX_LEN):
+        self.store, self.anchors, self.max_len = store, anchors, max_len
 
-    return DarnnDataset()
+    def __len__(self) -> int:
+        return len(self.anchors)
+
+    def __getitem__(self, i: int) -> dict:
+        import torch
+        a = self.anchors
+        it = darnn_item(self.store, a.uid[i], a.anchor_ts[i], a.y[i], self.max_len)
+        return {k: (torch.tensor(v) if isinstance(v, int) else torch.as_tensor(v)) for k, v in it.items()}
+
+
+def make_darnn_dataset(store: EventStore, anchors: Anchors, max_len: int = MAX_LEN) -> DarnnDataset:
+    return DarnnDataset(store, anchors, max_len)

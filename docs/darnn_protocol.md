@@ -49,9 +49,21 @@ changes only the click targets.)
    optimizer. Match STAJT's scale (d = 128, AdamW, lr 3e-4) so neither model gets a bigger
    budget, unless the paper's experiments section says otherwise.
 
+## Code
+
+- Model: `src/models/darnn.py` (`DARNN`, `darnn_loss`). `last_click_step=False` gives the paper's
+  decoder, for an optional ablation (`--no-last-click-step`, saved as `darnn_paper_decoder`).
+- Training + test scoring: `scripts/train_darnn.py`, Zaratan job `scripts/zaratan/train_darnn.sbatch`.
+  Writes `results/predictions/darnn__seed1__chrono_test.parquet` plus its `.meta.json`, so
+  `scripts/evaluate_predictions.py` scores it against STAJT and adds it to the results table.
+- Tests: `tests/test_darnn.py` (needs torch; run `pytest -q` on Zaratan). They check that the
+  most recent click reaches the conversion output only with `last_click_step`, that a click is
+  never used to predict itself, that padding length doesn't change predictions, and a full CPU
+  run of the training script on synthetic data, including resume.
+
 ## Compute
 
-DARNN is two small LSTMs, so use a MIG slice, not a full A100. Smoke-test on a 1% user sample,
+DARNN is two small LSTMs, so use a MIG slice (`gpu:a100_1g.5gb`, 7 SU/hr), not a full A100 (48 SU/hr). Smoke-test on a 1% user sample,
 select checkpoints on the fixed validation subsample (all positives + 10% of negatives), score
 the test set once, 1 seed.
 
