@@ -55,6 +55,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.data.features import build_position_features, feature_matrix  # noqa: E402
 from src.data.io import load_meta, load_shard, shard_ids  # noqa: E402
 from src.data.preprocess import write_table  # noqa: E402
+from src.evaluation.results_table import write_run_meta  # noqa: E402
 from src.evaluation.metrics import (  # noqa: E402
     best_f1_threshold, conversion_metrics, ranking_conversion_metrics, ranking_metrics_from_topk,
 )
@@ -168,9 +169,11 @@ def main() -> None:
             res["conversion"][name]["fit_seconds"] = round(time.time() - t1, 1)
             print(f"  [{p}] {name}: test PR-AUC {res['conversion'][name]['test']['pr_auc']:.4f}")
             if args.save_predictions:
-                save_predictions(args.save_predictions, name, args.seed, p, ev["test"], probs["test"])
+                save_predictions(args.save_predictions, name, args.seed, p, ev["test"], probs["test"],
+                                 args.neg_rate)
         if args.save_predictions and not args.skip_recency_predictions:
-            save_predictions(args.save_predictions, "recency", args.seed, p, ev["test"], ev["test"]["rf"])
+            save_predictions(args.save_predictions, "recency", args.seed, p, ev["test"], ev["test"]["rf"],
+                             args.neg_rate)
         if not args.skip_campaign:
             for sp in ("val", "test"):
                 c = camp[p][sp]
@@ -189,7 +192,7 @@ def main() -> None:
 
 
 def save_predictions(out_dir: Path, model: str, seed: int, protocol: str, ev: dict,
-                     scores: np.ndarray) -> Path:
+                     scores: np.ndarray, neg_rate: float = 0.01) -> Path:
     """One row per test position: uid, window (anchor t), score. See results/predictions/README.md."""
     out_dir = out_dir if out_dir.is_absolute() else REPO_ROOT / out_dir
     df = pd.DataFrame({"uid": ev["uid"], "window": ev["window"].astype("int32"),
@@ -197,6 +200,9 @@ def save_predictions(out_dir: Path, model: str, seed: int, protocol: str, ev: di
     if df.duplicated(["uid", "window"]).any():
         raise RuntimeError(f"{model}/{protocol}: duplicate (uid, window) test rows")
     path = write_table(df, out_dir / f"{model}__seed{seed}__{PRED_SPLIT_NAME[protocol]}.parquet")
+    write_run_meta(path, config=f"neg{100 * neg_rate:g}pct", history="w12h_features",
+                   source="scripts/run_baselines.py", gpu_hours=0.0, hardware="cpu",
+                   notes="deterministic rule, no training" if model == "recency" else "")
     print(f"    saved {len(df):,} test predictions -> {path}")
     return path
 
