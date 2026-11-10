@@ -40,6 +40,8 @@ mlruns/
 
 # Large generated results
 results/**/*.csv
+# ...except the team's one results table (docs/results_table.md), which is small and shared
+!results/tables/results.csv
 results/**/*.parquet
 results/**/*.npy
 results/**/*.npz
