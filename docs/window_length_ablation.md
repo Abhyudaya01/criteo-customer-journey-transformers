@@ -65,8 +65,16 @@ with the October 6-hour build.
 4. Score (CPU): `sbatch scripts/zaratan/evaluate_predictions.sbatch chrono_test`. Compare
    `itransformer_w6h` against `itransformer` seed 1, so both rows have one seed.
 
-## Open dependency
+## iTransformer script (was: open dependency)
 
-The iTransformer training code lives in Abhyudaya's Colab notebooks, not in the repo. Step 2
-needs it committed as a script (this is also the plan's "one run source" fix for the 20-point
-code score).
+`scripts/train_transformer.py` is the script version of the Colab notebook (identical results on
+synthetic data with the Colab seeds). It covers steps 2 and 3: on `criteo_w6h_in_w12h` it maps
+predictions back to 12-hour keys itself and names them `itransformer_w6h`:
+
+```bash
+sbatch scripts/zaratan/train_itransformer.sbatch criteo_w6h_in_w12h 1   # 6h input
+sbatch scripts/zaratan/train_itransformer.sbatch criteo_w12h 1          # 12h, same seed
+```
+
+The lookback is set in hours (168 h), so the 6h model reads 28 windows and the 12h model 14:
+both see the same 7 days of history, and only the token length differs.
