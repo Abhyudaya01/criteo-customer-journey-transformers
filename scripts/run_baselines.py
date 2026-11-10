@@ -95,6 +95,8 @@ def main() -> None:
     ap.add_argument("--out-dir", type=Path, default=REPO_ROOT / "results" / "tables")
     ap.add_argument("--save-predictions", type=Path, default=None, metavar="DIR",
                     help="write test predictions for evaluate_predictions.py (e.g. results/predictions)")
+    ap.add_argument("--skip-recency-predictions", action="store_true",
+                    help="don't save recency predictions (it has no randomness, so extra seeds are copies)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -167,7 +169,7 @@ def main() -> None:
             print(f"  [{p}] {name}: test PR-AUC {res['conversion'][name]['test']['pr_auc']:.4f}")
             if args.save_predictions:
                 save_predictions(args.save_predictions, name, args.seed, p, ev["test"], probs["test"])
-        if args.save_predictions:
+        if args.save_predictions and not args.skip_recency_predictions:
             save_predictions(args.save_predictions, "recency", args.seed, p, ev["test"], ev["test"]["rf"])
         if not args.skip_campaign:
             for sp in ("val", "test"):

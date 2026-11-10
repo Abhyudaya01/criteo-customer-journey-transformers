@@ -1,11 +1,14 @@
 #!/bin/bash
-# Seeds 2 and 3 for logistic + GBDT (CPU only), then re-score with seed-averaged CIs.
+# Seeds 2 and 3 for GBDT (CPU only), then re-score with seed-averaged CIs.
+#
+# GBDT only: the plan gives seeds to headline models only (STAJT, iTransformer, Lu-Kannan,
+# LSTM, GBDT). Logistic and recency keep their single seed-42 run.
 #
 # Seed 1 is the existing seed-42 run from baselines_ci.sbatch. Each seed draws a different 1%
 # negative training sample (and GBDT random_state). evaluate_predictions.py groups files by
 # model name, so it averages all three seeds and reports their standard deviation.
 #
-# Cost: ~22 min of baselines per seed + ~5 min scoring per split, about 55 min in total.
+# Cost: ~20 min per seed (feature building dominates) + ~5 min scoring per split, ~50 min.
 #
 # Submit from the repo root with the conda env active:
 #   mkdir -p logs && sbatch scripts/zaratan/baselines_seeds.sbatch
@@ -26,7 +29,7 @@ DATA=data/processed/criteo_w12h
 
 for SEED in 2 3; do
     python scripts/run_baselines.py --data-dir "${DATA}" --neg-rate 0.01 --skip-campaign \
-        --seed "${SEED}" --save-predictions results/predictions \
+        --models gbdt --seed "${SEED}" --save-predictions results/predictions --skip-recency-predictions \
         --out-dir "results/tables/baselines_neg001_seed${SEED}"
 done
 
