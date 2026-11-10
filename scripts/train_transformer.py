@@ -30,7 +30,10 @@ Outputs (``--out-dir``, default results/tables/<model>_<dataset>/):
     run_config.json
 With ``--save-predictions DIR``: DIR/<pred-name>__seed<seed>__<chrono_test|user_test>.parquet
 (columns uid, window, score; one row per test position, 12h window keys), see
-results/predictions/README.md. Runs whose raw JSON exists are skipped unless ``--force``.
+results/predictions/README.md, plus the ``.meta.json`` sidecar that puts the run in the shared
+results table (docs/results_table.md): config ``neg1pct``, history ``w12h_14lags`` or
+``w6h_28lags_in_w12h``, GPU-hours, hardware, best epoch. Runs whose raw JSON exists are skipped
+unless ``--force``.
 Model checkpoints go to ``--checkpoint-dir`` only if given (they are not committed).
 """
 
@@ -128,6 +131,26 @@ def save_predictions(out_dir: Path, name: str, seed: int, protocol: str, data: W
     return write_table(df, out_dir / f"{name}__seed{seed}__{PRED_SPLIT_NAME[protocol]}.parquet")
 
 
+def history_label(data: WindowData) -> str:
+    """Input representation for the results table, e.g. w12h_14lags or w6h_28lags_in_w12h."""
+    lab = f"w{data.window_hours:g}h_{data.lookback}lags"
+    return lab if data.window_hours == data.target_hours else f"{lab}_in_w{data.target_hours:g}h"
+
+
+def write_meta(pred_path: Path, **meta) -> Path | None:
+    """Sidecar for results/tables/results.csv (docs/results_table.md), if the results table is in the repo.
+
+    Without src/evaluation/results_table.py the scorer would read the sidecar as a prediction file,
+    so nothing is written; tag such files later with scripts/tag_predictions.py.
+    """
+    try:
+        from src.evaluation.results_table import write_run_meta
+    except ImportError:
+        print("    (no results table in this checkout: .meta.json not written)")
+        return None
+    return write_run_meta(pred_path, **meta)
+
+
 def run_one(args, data: WindowData, protocol: str, n_heads: int, cfg: TrainConfig, device: str,
             amp: bool, out_dir: Path) -> dict:
     from src.models.itransformer import ITransformer
@@ -155,7 +178,7 @@ def run_one(args, data: WindowData, protocol: str, n_heads: int, cfg: TrainConfi
     model = ITransformer(top_idx, n_static=data.n_static, n_camp=data.n_campaigns, n_heads=n_heads,
                          lookback=data.lookback, n_activity=len(FEATS), d=args.d_model, layers=args.layers,
                          dropout=args.dropout, copy_history=not args.no_copy_history).to(device)
-    state = train(model, data, tr, val_idx, cfg, model_seed, device, amp)
+    state, info = train(model, data, tr, val_idx, cfg, model_seed, device, amp)
     if args.checkpoint_dir is not None:
         ck = resolve(args.checkpoint_dir)
         ck.mkdir(parents=True, exist_ok=True)
@@ -171,11 +194,17 @@ def run_one(args, data: WindowData, protocol: str, n_heads: int, cfg: TrainConfi
            "val_pr_auc": float(average_precision_score(data.y[val_idx], p_val)),
            **conversion_metrics(data.y[test_idx], p_test, threshold=thr),
            "f1_threshold_from_val": thr, "n_test": int(len(test_idx)), "n_test_pos": int(data.y[test_idx].sum()),
-           "n_params": int(sum(p.numel() for p in model.parameters())), "fit_seconds": round(fit_s, 1)}
+           "n_params": int(sum(p.numel() for p in model.parameters())), "fit_seconds": round(fit_s, 1), **info}
     if pred_path is not None:
         saved = save_predictions(pred_dir, pred_name, args.seed, protocol, data, test_idx, p_test)
+        on_gpu = device == "cuda"
+        side = write_meta(saved, config=f"neg{args.neg_rate * 100:g}pct", history=history_label(data),
+                          source="scripts/train_transformer.py",
+                          gpu_hours=round((time.time() - t0) / 3600, 4) if on_gpu else 0.0,
+                          hardware=torch.cuda.get_device_name(0) if on_gpu else "cpu",
+                          notes=f"best epoch {info['best_epoch']}/{info['epochs_run']}, model seed {model_seed}")
         res["predictions_file"] = str(saved.relative_to(REPO_ROOT)) if saved.is_relative_to(REPO_ROOT) else str(saved)
-        print(f"    saved {len(test_idx):,} test predictions -> {saved}")
+        print(f"    saved {len(test_idx):,} test predictions -> {saved}" + (f" (+ {side.name})" if side else ""))
     if not args.skip_campaign_eval:
         cidx = data.campaign_sample(m, args.campaign_eval_max)
         _, scores = predict(model, data, cidx, cfg, device, amp, campaign=True)

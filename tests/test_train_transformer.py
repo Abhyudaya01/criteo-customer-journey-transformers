@@ -26,6 +26,7 @@ torch = pytest.importorskip("torch")
 from src.training.window_data import WindowData  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
+HAS_RESULTS_TABLE = (REPO / "src" / "evaluation" / "results_table.py").exists()   # sidecars need it
 TINY = ["--epochs", "1", "--d-model", "16", "--layers", "1", "--top-campaigns", "5", "--heads", "2",
         "--batch", "128", "--eval-batch", "1024", "--campaign-eval-max", "300", "--neg-rate", "0.5",
         "--device", "cpu"]
@@ -114,6 +115,13 @@ def test_script_end_to_end_and_prediction_format(datasets, tmp_path):
         assert len(p) == len(test) == r["n_test"] and not p.duplicated(["uid", "window"]).any()
         assert set(map(tuple, p[["uid", "window"]].to_numpy())) == set(map(tuple, test.to_numpy()))
         assert p["score"].between(0, 1).all()
+        side_path = tmp_path / "pred" / f"itransformer__seed1__{split}.meta.json"
+        assert side_path.exists() == HAS_RESULTS_TABLE
+        if HAS_RESULTS_TABLE:
+            side = json.loads(side_path.read_text())
+            assert side["config"] == "neg50pct" and side["history"] == "w12h_14lags"
+            assert side["source"] == "scripts/train_transformer.py" and side["hardware"] == "cpu"
+            assert side["gpu_hours"] == 0.0
     assert (tmp_path / "out" / "conversion_itransformer.csv").exists()
     assert (tmp_path / "out" / "campaign_itransformer.csv").exists()
 
@@ -142,3 +150,6 @@ def test_6h_input_predictions_use_12h_keys(datasets, tmp_path):
     test = pos.loc[pos["time_split"] == "test", ["uid", "window"]]
     assert len(p) == len(test)
     assert set(map(tuple, p[["uid", "window"]].to_numpy())) == set(map(tuple, test.to_numpy()))
+    if HAS_RESULTS_TABLE:
+        side = json.loads((tmp_path / "pred" / "itransformer_w6h__seed1__chrono_test.meta.json").read_text())
+        assert side["history"] == "w6h_28lags_in_w12h"

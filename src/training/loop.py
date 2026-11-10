@@ -50,11 +50,14 @@ def predict(model, data, idx: np.ndarray, cfg: TrainConfig, device: str, amp: bo
 
 def train(model, data, tr: np.ndarray, val_idx: np.ndarray, cfg: TrainConfig, seed: int,
           device: str, amp: bool, log=print):
-    """Train in place; restores and returns the best state dict (by validation-sample PR-AUC)."""
+    """Train in place; restores the best state (by validation-sample PR-AUC).
+
+    Returns ``(best_state_dict, info)`` with ``info = {"best_epoch", "epochs_run", "best_val_sample_pr_auc"}``.
+    """
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     vs = data.val_sample(val_idx)
     rs = np.random.default_rng(seed)
-    best, best_state, bad = -1.0, None, 0
+    best, best_state, bad, best_ep, ep = -1.0, None, 0, 0, -1
     for ep in range(cfg.epochs):
         model.train()
         perm = tr[rs.permutation(len(tr))]
@@ -77,11 +80,11 @@ def train(model, data, tr: np.ndarray, val_idx: np.ndarray, cfg: TrainConfig, se
         log(f"    epoch {ep + 1}: loss {tot / max(len(perm), 1):.4f} | val-sample PR-AUC {ap:.4f} | "
             f"{time.time() - t0:.0f}s")
         if ap > best:
-            best, bad = ap, 0
+            best, bad, best_ep = ap, 0, ep + 1
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
         else:
             bad += 1
             if bad >= cfg.patience:
                 break
     model.load_state_dict(best_state)
-    return best_state
+    return best_state, {"best_epoch": best_ep, "epochs_run": ep + 1, "best_val_sample_pr_auc": float(best)}
