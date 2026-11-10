@@ -1,0 +1,33 @@
+{
+  "python": "3.13.16",
+  "torch": "2.11.0+cu130",
+  "numpy": "2.1.3",
+  "pandas": "2.2.3",
+  "device": "cuda",
+  "dataset": "criteo_w12h",
+  "lookback": 14,
+  "neg_rate": 0.01,
+  "seeds": [
+    0
+  ],
+  "history_features": [
+    "windows_since_active",
+    "is_active",
+    "cur_impressions",
+    "cur_clicks",
+    "cur_campaigns",
+    "cum_impressions",
+    "cum_clicks",
+    "cum_conversions",
+    "cum_active_windows",
+    "cum_cost",
+    "windows_since_first",
+    "windows_since_conversion",
+    "click_rate",
+    "slot_of_day"
+  ],
+  "protocols": [
+    "chronological",
+    "user_disjoint"
+  ]
+}

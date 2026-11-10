@@ -1,0 +1,45 @@
+{
+  "python": "3.13.16",
+  "torch": "2.11.0+cu130",
+  "device": "cuda",
+  "bf16": true,
+  "dataset": "criteo_w12h",
+  "lookback": 14,
+  "neg_rate": 0.01,
+  "d_model": 64,
+  "layers": 2,
+  "dropout": 0.1,
+  "campaign_loss_weight": 0.1,
+  "copy_history": true,
+  "batch": 1024,
+  "lr": 0.001,
+  "weightings": [
+    "per_user"
+  ],
+  "heads": [
+    4
+  ],
+  "seeds": [
+    0
+  ],
+  "history_features": [
+    "windows_since_active",
+    "is_active",
+    "cur_impressions",
+    "cur_clicks",
+    "cur_campaigns",
+    "cum_impressions",
+    "cum_clicks",
+    "cum_conversions",
+    "cum_active_windows",
+    "cum_cost",
+    "windows_since_first",
+    "windows_since_conversion",
+    "click_rate",
+    "slot_of_day"
+  ],
+  "protocols": [
+    "chronological",
+    "user_disjoint"
+  ]
+}
