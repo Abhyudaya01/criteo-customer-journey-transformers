@@ -28,5 +28,6 @@ Shared setup: every positive plus 1% of negatives (probabilities corrected back)
 lookback, `src/data/features.py` history features, F1 threshold chosen on validation, both
 protocols (chronological, user-disjoint). Results go to `results/v2_history/<model>/<dataset>/`.
 
-Single seed so far; seeds, prediction files for `scripts/evaluate_predictions.py`, and script
+The training notebooks and the three benchmark data-prep notebooks are the executed Colab copies, with
+cell outputs from the runs (26 Oct 2026). Single seed so far; seeds, prediction files for `scripts/evaluate_predictions.py`, and script
 versions of these notebooks are next.
