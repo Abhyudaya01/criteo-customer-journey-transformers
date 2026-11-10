@@ -1,0 +1,87 @@
+{
+  "window_hours": 12,
+  "horizon_windows": 1,
+  "timestamp_unit": "seconds",
+  "n_windows": 276,
+  "max_inactive_windows": 14,
+  "n_impressions": 2756101,
+  "n_users": 1407580,
+  "n_campaigns": 675,
+  "n_conversions_total": 17672,
+  "n_conversions_in_horizon": 17672,
+  "n_positions": 22672386,
+  "n_users_with_positions": 1403973,
+  "n_positive_positions": 3659,
+  "n_positions_with_next_campaign": 174321,
+  "n_conversion_windows_covered": 3659,
+  "n_conversion_windows": 13105,
+  "leaky_columns_never_used_as_features": [
+    "conversion",
+    "conversion_timestamp",
+    "conversion_id",
+    "attribution",
+    "click_pos",
+    "click_nb",
+    "cpo"
+  ],
+  "positive_rate_conversion": 0.00016138574916640887,
+  "frac_positions_with_next_campaign": 0.007688692314959705,
+  "frac_conversion_windows_covered": 0.2792064097672644,
+  "splits": {
+    "boundaries": {
+      "train_label_windows": [
+        1,
+        192
+      ],
+      "val_label_windows": [
+        193,
+        233
+      ],
+      "test_label_windows": [
+        234,
+        275
+      ]
+    },
+    "time_split": {
+      "test": {
+        "n_positions": 3361078,
+        "n_users": 281001,
+        "n_positive": 480
+      },
+      "train": {
+        "n_positions": 16086440,
+        "n_users": 1023741,
+        "n_positive": 2664
+      },
+      "val": {
+        "n_positions": 3224868,
+        "n_users": 276156,
+        "n_positive": 515
+      }
+    },
+    "user_group": {
+      "test": {
+        "n_positions": 3416561,
+        "n_users": 211358,
+        "n_positive": 533
+      },
+      "train": {
+        "n_positions": 15859343,
+        "n_users": 981963,
+        "n_positive": 2716
+      },
+      "val": {
+        "n_positions": 3396482,
+        "n_users": 210652,
+        "n_positive": 410
+      }
+    }
+  },
+  "seed": 42,
+  "n_shards": 4,
+  "source_dataset": "retailrocket",
+  "campaign_token": "item category (top 673 + other + unknown)",
+  "conversion": "transaction",
+  "click": "addtocart or transaction",
+  "cost": "not available (0)"
+}

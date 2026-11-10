@@ -1,0 +1,96 @@
+{
+  "window_hours": 0.08333333333333333,
+  "horizon_windows": 1,
+  "timestamp_unit": "seconds",
+  "n_windows": 24,
+  "max_inactive_windows": 6,
+  "n_impressions": 34078854,
+  "n_users": 9249729,
+  "n_campaigns": 336,
+  "n_conversions_total": 1142409,
+  "n_conversions_in_horizon": 1142409,
+  "n_positions": 73551215,
+  "n_users_with_positions": 9249729,
+  "n_positive_positions": 463651,
+  "n_positions_with_next_campaign": 5074721,
+  "n_conversion_windows_covered": 463651,
+  "n_conversion_windows": 516928,
+  "leaky_columns_never_used_as_features": [
+    "conversion",
+    "conversion_timestamp",
+    "conversion_id",
+    "attribution",
+    "click_pos",
+    "click_nb",
+    "cpo"
+  ],
+  "positive_rate_conversion": 0.006303784376641501,
+  "frac_positions_with_next_campaign": 0.06899574670520399,
+  "frac_conversion_windows_covered": 0.8969353565680327,
+  "splits": {
+    "boundaries": null,
+    "session_start_dates": {
+      "train": [
+        "2014-04-01",
+        "2014-08-06"
+      ],
+      "val": [
+        "2014-08-06",
+        "2014-09-02"
+      ],
+      "test": [
+        "2014-09-02",
+        "2014-09-30"
+      ]
+    },
+    "time_split": {
+      "test": {
+        "n_positions": 11306994,
+        "n_users": 1427242,
+        "n_positive": 69088
+      },
+      "train": {
+        "n_positions": 47803777,
+        "n_users": 5999328,
+        "n_positive": 305729
+      },
+      "val": {
+        "n_positions": 14440444,
+        "n_users": 1823159,
+        "n_positive": 88834
+      }
+    },
+    "user_group": {
+      "test": {
+        "n_positions": 11044969,
+        "n_users": 1388569,
+        "n_positive": 69562
+      },
+      "train": {
+        "n_positions": 51485154,
+        "n_users": 6474762,
+        "n_positive": 324390
+      },
+      "val": {
+        "n_positions": 11021092,
+        "n_users": 1386398,
+        "n_positive": 69699
+      }
+    }
+  },
+  "seed": 42,
+  "n_shards": 16,
+  "source_dataset": "yoochoose_recsys2015",
+  "unit": "session (uid = session id)",
+  "time_axis": "session-relative (window 0 = session start)",
+  "window_minutes": 5,
+  "inactive_minutes": 30,
+  "max_session_hours": 2,
+  "events_dropped_after_cap": 75843,
+  "buys_dropped_after_cap": 8344,
+  "time_split_rule": "session start date, 70%/15%/15% of the period",
+  "campaign_token": "item category (top 672 + other + unknown + special offer)",
+  "conversion": "buy",
+  "click": "purchase event",
+  "cost": "not available (0)"
+}
