@@ -1,0 +1,90 @@
+{
+  "window_hours": 3,
+  "horizon_windows": 1,
+  "timestamp_unit": "seconds",
+  "n_windows": 72,
+  "max_inactive_windows": 56,
+  "n_impressions": 100095231,
+  "n_users": 987991,
+  "n_campaigns": 675,
+  "n_conversions_total": 2015839,
+  "n_conversions_in_horizon": 2015839,
+  "n_positions": 62463769,
+  "n_users_with_positions": 987991,
+  "n_positive_positions": 1432549,
+  "n_positions_with_next_campaign": 13832024,
+  "n_conversion_windows_covered": 1432549,
+  "n_conversion_windows": 1528335,
+  "leaky_columns_never_used_as_features": [
+    "conversion",
+    "conversion_timestamp",
+    "conversion_id",
+    "attribution",
+    "click_pos",
+    "click_nb",
+    "cpo"
+  ],
+  "positive_rate_conversion": 0.022934078793740417,
+  "frac_positions_with_next_campaign": 0.22144075231835594,
+  "frac_conversion_windows_covered": 0.9373265678009075,
+  "splits": {
+    "boundaries": {
+      "train_label_windows": [
+        1,
+        50
+      ],
+      "val_label_windows": [
+        51,
+        61
+      ],
+      "test_label_windows": [
+        62,
+        71
+      ]
+    },
+    "time_split": {
+      "test": {
+        "n_positions": 9879094,
+        "n_users": 987968,
+        "n_positive": 269638
+      },
+      "train": {
+        "n_positions": 41717851,
+        "n_users": 987736,
+        "n_positive": 897737
+      },
+      "val": {
+        "n_positions": 10866824,
+        "n_users": 987980,
+        "n_positive": 265174
+      }
+    },
+    "user_group": {
+      "test": {
+        "n_positions": 9409025,
+        "n_users": 148780,
+        "n_positive": 215673
+      },
+      "train": {
+        "n_positions": 43666883,
+        "n_users": 690705,
+        "n_positive": 1000751
+      },
+      "val": {
+        "n_positions": 9387861,
+        "n_users": 148506,
+        "n_positive": 216125
+      }
+    }
+  },
+  "seed": 42,
+  "n_shards": 16,
+  "source_dataset": "taobao_userbehavior",
+  "campaign_token": "item category (top 673 + other + unknown)",
+  "conversion": "buy",
+  "click": "cart, fav or buy",
+  "windows_per_day": 8,
+  "user_fraction": 1.0,
+  "rows_dropped_out_of_range": 55576,
+  "cost": "not available (0)"
+}

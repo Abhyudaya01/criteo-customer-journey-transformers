@@ -1,0 +1,40 @@
+{
+  "task": "campaign",
+  "protocol": "chronological",
+  "n_eval_positions": 200000,
+  "frac_test_positions_with_next_campaign": 0.04788992003867756,
+  "popularity": {
+    "precision_at_1": 0.029745,
+    "recall_at_1": 0.028781677262039538,
+    "hit_rate_at_1": 0.029745,
+    "ndcg_at_1": 0.029745,
+    "map_at_1": 0.029745,
+    "precision_at_5": 0.024095,
+    "recall_at_5": 0.11657329191945581,
+    "hit_rate_at_5": 0.120125,
+    "ndcg_at_5": 0.07215942231825812,
+    "map_at_5": 0.05693570833333334,
+    "precision_at_10": 0.0192505,
+    "recall_at_10": 0.18627052551114207,
+    "hit_rate_at_10": 0.19189,
+    "ndcg_at_10": 0.09471890856197855,
+    "map_at_10": 0.06608671891534393
+  },
+  "user_recency": {
+    "precision_at_1": 0.760055,
+    "recall_at_1": 0.7354398289258517,
+    "hit_rate_at_1": 0.760055,
+    "ndcg_at_1": 0.760055,
+    "map_at_1": 0.760055,
+    "precision_at_5": 0.169069,
+    "recall_at_5": 0.8179676236368738,
+    "hit_rate_at_5": 0.832225,
+    "ndcg_at_5": 0.796146985854248,
+    "map_at_5": 0.7840714222222221,
+    "precision_at_10": 0.085837,
+    "recall_at_10": 0.8305707954754371,
+    "hit_rate_at_10": 0.844115,
+    "ndcg_at_10": 0.8001252356054007,
+    "map_at_10": 0.7857372369047619
+  }
+}
