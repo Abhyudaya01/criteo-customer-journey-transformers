@@ -47,7 +47,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.data.io import load_meta, load_shard, shard_ids  # noqa: E402
-from src.evaluation.bootstrap import format_ci, user_bootstrap  # noqa: E402
+from src.evaluation.bootstrap import SortedPreds, format_ci, sorted_metrics, user_bootstrap  # noqa: E402
+from src.evaluation.results_table import make_row, read_run_meta, sidecar_path, upsert_results  # noqa: E402
 from src.evaluation.subgroups import HISTORY_ONLY, SUBGROUPS, position_subgroup_flags  # noqa: E402
 
 NAME_RE = re.compile(r"^(?P<model>.+?)__seed(?P<seed>\d+)__(?P<split>[a-z_]+)$")
@@ -55,13 +56,19 @@ SPLIT_FILTER = {"chrono_test": ("time_split", "test"), "user_test": ("user_group
                 "chrono_val": ("time_split", "val"), "user_val": ("user_group", "val")}
 
 
+PRED_SUFFIXES = (".parquet", ".csv", ".csv.gz")
+
+
 def _read(path: Path) -> pd.DataFrame:
     return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
 
 
-def load_predictions(pred_dir: Path, split: str) -> dict[tuple[str, int], pd.DataFrame]:
-    out = {}
+def load_predictions(pred_dir: Path, split: str) -> tuple[dict, dict]:
+    """(model, seed) -> predictions, and (model, seed) -> file path (for its .meta.json)."""
+    out, paths = {}, {}
     for p in sorted(pred_dir.glob(f"*__{split}.*")):
+        if not p.name.endswith(PRED_SUFFIXES):
+            continue  # e.g. the .meta.json sidecar next to each prediction file
         m = NAME_RE.match(p.name.split(".")[0])
         if not m:
             print(f"skip {p.name}: name is not <model>__seed<k>__<split>", flush=True)
@@ -72,10 +79,13 @@ def load_predictions(pred_dir: Path, split: str) -> dict[tuple[str, int], pd.Dat
         missing = {"uid", "window", "score"} - set(df.columns)
         if missing:
             raise ValueError(f"{p.name} is missing columns {missing}")
-        out[(m["model"], int(m["seed"]))] = df[["uid", "window", "score"]]
+        key = (m["model"], int(m["seed"]))
+        if key in out:
+            raise ValueError(f"two files for {key} in {pred_dir}: {paths[key].name} and {p.name}")
+        out[key], paths[key] = df[["uid", "window", "score"]], p
     if not out:
         raise FileNotFoundError(f"No prediction files for split {split!r} in {pred_dir}")
-    return out
+    return out, paths
 
 
 def load_flags(data_dir: Path, split: str) -> pd.DataFrame:
@@ -95,10 +105,11 @@ def load_flags(data_dir: Path, split: str) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True)
 
 
-def align(flags: pd.DataFrame, preds: dict) -> tuple[pd.DataFrame, dict[str, list[np.ndarray]]]:
+def align(flags: pd.DataFrame, preds: dict) -> tuple[pd.DataFrame, dict[str, list[np.ndarray]], dict]:
     """Put every prediction file in the row order of ``flags``; fail if any position is missing."""
     keys = flags[["uid", "window"]]
     by_model: dict[str, list[np.ndarray]] = {}
+    by_file: dict[tuple[str, int], np.ndarray] = {}
     for (model, seed), df in sorted(preds.items()):
         if df.duplicated(["uid", "window"]).any():
             raise ValueError(f"{model} seed {seed}: duplicate (uid, window) rows")
@@ -108,8 +119,10 @@ def align(flags: pd.DataFrame, preds: dict) -> tuple[pd.DataFrame, dict[str, lis
             raise ValueError(f"{model} seed {seed}: {n_missing:,} positions missing and "
                              f"{len(df) - (len(keys) - n_missing):,} extra; every file must cover the "
                              f"same {len(keys):,} positions")
-        by_model.setdefault(model, []).append(m["score"].to_numpy(np.float64))
-    return flags, by_model
+        scores = m["score"].to_numpy(np.float64)
+        by_model.setdefault(model, []).append(scores)
+        by_file[(model, seed)] = scores
+    return flags, by_model, by_file
 
 
 def main() -> None:
@@ -123,6 +136,12 @@ def main() -> None:
     ap.add_argument("--n-boot", type=int, default=1000)
     ap.add_argument("--subgroup-n-boot", type=int, default=500)
     ap.add_argument("--seed", type=int, default=612)
+    ap.add_argument("--results-table", type=Path, default=None,
+                    help="shared per-run table to update (default: <out-dir>/results.csv)")
+    ap.add_argument("--table-only", action="store_true",
+                    help="only update the shared results table (point metrics); skip CIs and subgroups")
+    ap.add_argument("--no-results-table", action="store_true",
+                    help="don't touch the shared results table (e.g. for smoke tests)")
     ap.add_argument("--neg-frac", type=float, default=0.1,
                     help="share of negatives used inside replicates (weighted 1/neg-frac); "
                          "point estimates always use every row")
@@ -130,13 +149,32 @@ def main() -> None:
     args = ap.parse_args()
 
     t0 = time.time()
-    preds = load_predictions(args.pred_dir, args.split)
+    preds, paths = load_predictions(args.pred_dir, args.split)
     print(f"{len(preds)} prediction files: {sorted(preds)}", flush=True)
-    flags, by_model = align(load_flags(args.data_dir, args.split), preds)
+    flags, by_model, by_file = align(load_flags(args.data_dir, args.split), preds)
     reference = args.reference if args.reference in by_model else None
     y, users = flags["y_conversion"].to_numpy(), flags["uid"].to_numpy()
     args.out_dir.mkdir(parents=True, exist_ok=True)
     tag = args.split
+
+    if not args.no_results_table:
+        table_path = args.results_table or args.out_dir / "results.csv"
+        rows = []
+        for (model, seed), scores in sorted(by_file.items()):
+            met = sorted_metrics(SortedPreds.build(y, scores), None,
+                                 ("pr_auc", "pr_auc_lift", "roc_auc", "top_decile_gain", "base_rate"))
+            rows.append(make_row(model, seed, args.split, met, read_run_meta(paths[(model, seed)]),
+                                 len(y), int(y.sum())))
+        upsert_results(table_path, rows)
+        no_meta = [f"{m}/seed{s}" for (m, s) in sorted(by_file) if not sidecar_path(paths[(m, s)]).exists()]
+        print(f"results table: {len(rows)} rows -> {table_path}"
+              + (f"; no .meta.json for {', '.join(no_meta)} (tag them with scripts/tag_predictions.py)"
+                 if no_meta else ""), flush=True)
+    if args.table_only:
+        if args.no_results_table:
+            sys.exit("--table-only with --no-results-table does nothing")
+        print(f"done (table only) in {time.time() - t0:,.0f}s", flush=True)
+        return
 
     print(f"overall: {len(y):,} positions, {y.sum():,} positives "
           f"({time.time() - t0:,.0f}s)", flush=True)
