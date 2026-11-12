@@ -1,11 +1,15 @@
 model,seed,split,config,history,pr_auc,pr_auc_lift,roc_auc,top_decile_gain,base_rate,n_positions,n_positives,source,run_where,hardware,gpu_hours,git_commit,trained_on,notes,scored_on
-gbdt,2,chrono_test,neg1pct,w12h_features,0.0221364,11.8021,0.843344,0.531187,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-10
-gbdt,3,chrono_test,neg1pct,w12h_features,0.0234825,12.5198,0.843523,0.530896,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-10
-gbdt,42,chrono_test,neg1pct,w12h_features,0.022386,11.9352,0.843417,0.529359,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-10
-logistic,42,chrono_test,neg1pct,w12h_features,0.0181631,9.68375,0.816089,0.475702,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-10
-recency,42,chrono_test,neg1pct,w12h_features,0.006897,3.67716,0.744759,0.358241,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,"deterministic rule, no training",2026-11-10
-gbdt,2,user_test,neg1pct,w12h_features,0.0247135,13.5034,0.846511,0.540766,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-10
-gbdt,3,user_test,neg1pct,w12h_features,0.0250939,13.7113,0.846382,0.53984,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-10
-gbdt,42,user_test,neg1pct,w12h_features,0.0244925,13.3827,0.84641,0.539753,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-10
-logistic,42,user_test,neg1pct,w12h_features,0.019306,10.5488,0.819127,0.476687,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-10
-recency,42,user_test,neg1pct,w12h_features,0.00635491,3.47232,0.731897,0.350525,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,"deterministic rule, no training",2026-11-10
+gbdt,2,chrono_test,neg1pct,w12h_features,0.0221364,11.8021,0.843344,0.531187,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-12
+gbdt,3,chrono_test,neg1pct,w12h_features,0.0234825,12.5198,0.843523,0.530896,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-12
+gbdt,42,chrono_test,neg1pct,w12h_features,0.022386,11.9352,0.843417,0.529359,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-12
+itransformer,1,chrono_test,neg1pct,w12h_14lags,0.0280737,14.9676,0.863817,0.591229,0.00187563,20121228,37740,scripts/train_transformer.py,zaratan job 24024486,NVIDIA A100-SXM4-40GB MIG 1g.5gb,0.5374,0e5a409,2026-11-11,"best epoch 9/10, model seed 1",2026-11-12
+itransformer_w6h,1,chrono_test,neg1pct,w6h_28lags_in_w12h,0.0285535,15.2234,0.864252,0.590329,0.00187563,20121228,37740,scripts/train_transformer.py,zaratan job 24024485,NVIDIA A100-SXM4-40GB MIG 1g.5gb,0.5603,0e5a409,2026-11-11,"best epoch 9/10, model seed 1",2026-11-12
+logistic,42,chrono_test,neg1pct,w12h_features,0.0181631,9.68375,0.816089,0.475702,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-12
+recency,42,chrono_test,neg1pct,w12h_features,0.006897,3.67716,0.744759,0.358241,0.00187563,20121228,37740,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,"deterministic rule, no training",2026-11-12
+gbdt,2,user_test,neg1pct,w12h_features,0.0247135,13.5034,0.846511,0.540766,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-12
+gbdt,3,user_test,neg1pct,w12h_features,0.0250939,13.7113,0.846382,0.53984,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23998993,cpu,0,cb8314f,2026-11-10,,2026-11-12
+gbdt,42,user_test,neg1pct,w12h_features,0.0244925,13.3827,0.84641,0.539753,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-12
+itransformer,1,user_test,neg1pct,w12h_14lags,0.029204,15.957,0.865132,0.597841,0.00183017,18878625,34551,scripts/train_transformer.py,zaratan job 24024486,NVIDIA A100-SXM4-40GB MIG 1g.5gb,0.5221,0e5a409,2026-11-11,"best epoch 10/10, model seed 1",2026-11-12
+itransformer_w6h,1,user_test,neg1pct,w6h_28lags_in_w12h,0.0295944,16.1703,0.865484,0.597754,0.00183017,18878625,34551,scripts/train_transformer.py,zaratan job 24024485,NVIDIA A100-SXM4-40GB MIG 1g.5gb,0.5422,0e5a409,2026-11-11,"best epoch 10/10, model seed 1",2026-11-12
+logistic,42,user_test,neg1pct,w12h_features,0.019306,10.5488,0.819127,0.476687,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,,2026-11-12
+recency,42,user_test,neg1pct,w12h_features,0.00635491,3.47232,0.731897,0.350525,0.00183017,18878625,34551,scripts/run_baselines.py,zaratan job 23779722,cpu,0,cb8314f,2026-11-10,"deterministic rule, no training",2026-11-12
