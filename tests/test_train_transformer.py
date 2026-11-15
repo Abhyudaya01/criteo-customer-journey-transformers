@@ -1,11 +1,18 @@
-"""Tests for the window-model data path and scripts/train_transformer.py (iTransformer).
+"""Tests for the window-model data path and scripts/train_transformer.py.
 
 * history batches use only windows <= t (future rows perturbed, batches unchanged);
 * each seed draws its own negative sample, and the same seed draws the same one;
-* the script runs end to end and writes one prediction per test position, in the format
-  scripts/evaluate_predictions.py reads;
+* the script runs end to end for every model (iTransformer, Lu & Kannan, PatchTST, LSTM) and
+  writes one prediction per test position, in the format scripts/evaluate_predictions.py reads;
+* ablation settings (heads, customer weighting, patches) get their own prediction names, so they
+  never overwrite the main runs;
+* Lu & Kannan gives customers outside the training sample the mean head weights;
 * on the 6h-input / 12h-target data the predictions are keyed by 12h windows and cover exactly
   the 12h test positions (window-length ablation, docs/window_length_ablation.md).
+
+Equivalence with the Colab notebooks (same data, seeds 42 / model seed 0) was checked outside the
+test suite, see the PR: identical metrics for iTransformer, Lu & Kannan and PatchTST; identical
+LSTM training, with final probabilities equal to about 6 significant digits.
 """
 
 import json
@@ -100,6 +107,14 @@ def _run(args):
     return out.stdout
 
 
+def _check_predictions(path: Path, test: pd.DataFrame, n_test: int):
+    p = pd.read_parquet(path)
+    assert list(p.columns) == ["uid", "window", "score"]
+    assert len(p) == len(test) == n_test and not p.duplicated(["uid", "window"]).any()
+    assert set(map(tuple, p[["uid", "window"]].to_numpy())) == set(map(tuple, test.to_numpy()))
+    assert p["score"].between(0, 1).all()
+
+
 def test_script_end_to_end_and_prediction_format(datasets, tmp_path):
     d12 = datasets["d12"]
     _run(["--data-dir", str(d12), "--seed", "1", "--out-dir", str(tmp_path / "out"),
@@ -109,13 +124,11 @@ def test_script_end_to_end_and_prediction_format(datasets, tmp_path):
                              ("user_disjoint", "user_test", "user_group")):
         r = json.loads((tmp_path / "out" / "raw" / f"{prot}_itransformer_top5_h2_seed1.json").read_text())
         assert 0 <= r["pr_auc"] <= 1 and 0 <= r["roc_auc"] <= 1 and "campaign" in r
-        p = pd.read_parquet(tmp_path / "pred" / f"itransformer__seed1__{split}.parquet")
+        assert r["epoch_cap"] == 1 and r["best_epoch"] == 1
         test = pos.loc[pos[col] == "test", ["uid", "window"]]
-        assert list(p.columns) == ["uid", "window", "score"]
-        assert len(p) == len(test) == r["n_test"] and not p.duplicated(["uid", "window"]).any()
-        assert set(map(tuple, p[["uid", "window"]].to_numpy())) == set(map(tuple, test.to_numpy()))
-        assert p["score"].between(0, 1).all()
-        side_path = tmp_path / "pred" / f"itransformer__seed1__{split}.meta.json"
+        # 2 heads is a head-ablation setting (main = 4), so the name says so.
+        _check_predictions(tmp_path / "pred" / f"itransformer_top5_h2__seed1__{split}.parquet", test, r["n_test"])
+        side_path = tmp_path / "pred" / f"itransformer_top5_h2__seed1__{split}.meta.json"
         assert side_path.exists() == HAS_RESULTS_TABLE
         if HAS_RESULTS_TABLE:
             side = json.loads(side_path.read_text())
@@ -136,7 +149,7 @@ def test_script_end_to_end_and_prediction_format(datasets, tmp_path):
                         capture_output=True, text=True, cwd=REPO)
     assert ev.returncode == 0, ev.stderr[-3000:]
     ci = pd.read_csv(tmp_path / "eval" / "conversion_ci_chrono_test.csv")
-    assert "itransformer" in set(ci["model"])
+    assert "itransformer_top5_h2" in set(ci["model"])
 
 
 def test_6h_input_predictions_use_12h_keys(datasets, tmp_path):
@@ -145,11 +158,92 @@ def test_6h_input_predictions_use_12h_keys(datasets, tmp_path):
           "--skip-campaign-eval", *TINY])
     r = json.loads((tmp_path / "out" / "raw" / "chronological_itransformer_top5_L28_w6h_h2_seed1.json").read_text())
     assert r["lookback"] == 28 and r["window_hours"] == 6
-    p = pd.read_parquet(tmp_path / "pred" / "itransformer_w6h__seed1__chrono_test.parquet")
     pos = datasets["coarse"]["positions"]
     test = pos.loc[pos["time_split"] == "test", ["uid", "window"]]
-    assert len(p) == len(test)
-    assert set(map(tuple, p[["uid", "window"]].to_numpy())) == set(map(tuple, test.to_numpy()))
+    _check_predictions(tmp_path / "pred" / "itransformer_top5_h2_w6h__seed1__chrono_test.parquet", test, len(test))
     if HAS_RESULTS_TABLE:
-        side = json.loads((tmp_path / "pred" / "itransformer_w6h__seed1__chrono_test.meta.json").read_text())
+        side = json.loads((tmp_path / "pred" / "itransformer_top5_h2_w6h__seed1__chrono_test.meta.json").read_text())
         assert side["history"] == "w6h_28lags_in_w12h"
+
+
+@pytest.mark.parametrize("model,run,pred", [
+    ("lu_kannan", "lu_kannan_per_user_h4", "lu_kannan"),
+    ("patchtst", "patchtst_p2s2_h4", "patchtst"),
+    ("lstm", "lstm", "lstm"),
+])
+def test_other_models_end_to_end(datasets, tmp_path, model, run, pred):
+    """Main configuration of each model: bare prediction name, both protocols, scorer reads them."""
+    tiny = [a for a in TINY if a not in ("--heads", "2")] + ["--heads", "4"]
+    _run(["--model", model, "--data-dir", str(datasets["d12"]), "--seed", "1", "--out-dir", str(tmp_path / "out"),
+          "--save-predictions", str(tmp_path / "pred"), *tiny])
+    pos = datasets["coarse"]["positions"]
+    for prot, split, col in (("chronological", "chrono_test", "time_split"),
+                             ("user_disjoint", "user_test", "user_group")):
+        r = json.loads((tmp_path / "out" / "raw" / f"{prot}_{run}_seed1.json").read_text())
+        assert 0 <= r["pr_auc"] <= 1 and r["epoch_cap"] == 1
+        assert ("campaign" in r) == (model != "lstm")           # LSTM is conversion-only
+        _check_predictions(tmp_path / "pred" / f"{pred}__seed1__{split}.parquet",
+                           pos.loc[pos[col] == "test", ["uid", "window"]], r["n_test"])
+        if HAS_RESULTS_TABLE:
+            side = json.loads((tmp_path / "pred" / f"{pred}__seed1__{split}.meta.json").read_text())
+            assert side["history"] == "w12h_14lags" and side["source"] == "scripts/train_transformer.py"
+    assert (tmp_path / "out" / f"conversion_{model}.csv").exists()
+    ev = subprocess.run([sys.executable, str(REPO / "scripts" / "evaluate_predictions.py"),
+                         "--data-dir", str(datasets["d12"]), "--split", "user_test", "--pred-dir", str(tmp_path / "pred"),
+                         "--out-dir", str(tmp_path / "eval"), "--n-boot", "5", "--subgroup-n-boot", "5"],
+                        capture_output=True, text=True, cwd=REPO)
+    assert ev.returncode == 0, ev.stderr[-3000:]
+    assert pred in set(pd.read_csv(tmp_path / "eval" / "conversion_ci_user_test.csv")["model"])
+
+
+def test_ablation_settings_get_their_own_prediction_files(datasets, tmp_path):
+    """Heads 1-4 and customer weighting (proposal ablations) must not overwrite the main run."""
+    tiny = [a for a in TINY if a not in ("--heads", "2")]
+    _run(["--model", "lu_kannan", "--data-dir", str(datasets["d12"]), "--seed", "1", "--protocols", "chronological",
+          "--heads", "1", "4", "--weighting", "per_user", "uniform", "amortized", "--skip-campaign-eval",
+          "--out-dir", str(tmp_path / "out"), "--save-predictions", str(tmp_path / "pred"), *tiny])
+    names = sorted(p.name.split("__")[0] for p in (tmp_path / "pred").glob("*.parquet"))
+    assert names == sorted(["lu_kannan", "lu_kannan_h1", "lu_kannan_uniform", "lu_kannan_uniform_h1",
+                            "lu_kannan_amortized", "lu_kannan_amortized_h1"])
+    assert len(list((tmp_path / "out" / "raw").glob("*.json"))) == 6
+    conv = pd.read_csv(tmp_path / "out" / "conversion_lu_kannan.csv")
+    assert set(conv["weighting"]) == {"per_user", "uniform", "amortized"} and set(conv["heads"]) == {1, 4}
+
+
+def test_prediction_names():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tt", REPO / "scripts" / "train_transformer.py")
+    tt = importlib.util.module_from_spec(spec)
+    sys.modules["tt"] = tt                               # dataclasses look the module up by name
+    spec.loader.exec_module(tt)
+
+    class D:                                             # 12h data, or 6h input with 12h targets
+        def __init__(self, w): self.window_hours, self.target_hours, self.lookback = w, 12.0, int(168 / w)
+
+    def names(argv, w=12.0):
+        a = tt.parse_args(["--data-dir", "x", *argv])
+        return [tt.pred_name(a, D(w), v) for v in tt.variants(a)]
+
+    assert names([]) == ["itransformer"] and names([], 6.0) == ["itransformer_w6h"]
+    assert names(["--model", "lu_kannan", "--heads", "1", "2", "3", "4"]) == \
+        ["lu_kannan_h1", "lu_kannan_h2", "lu_kannan_h3", "lu_kannan"]
+    assert names(["--model", "patchtst", "--patches", "2:2", "4:2"]) == ["patchtst", "patchtst_p4s2"]
+    assert names(["--model", "lstm", "--heads", "1", "2"]) == ["lstm"]      # heads do not apply
+    with pytest.raises(SystemExit):
+        tt.parse_args(["--data-dir", "x", "--heads", "1", "4", "--pred-name", "one"])
+
+
+def test_lu_kannan_unseen_customers_get_mean_weights():
+    from src.models.lu_kannan import LuKannanTransformer
+    torch.manual_seed(0)
+    m = LuKannanTransformer(n_num=10, n_static=3, n_camp=6, n_users=5, n_heads=3, weighting="per_user")
+    torch.nn.init.normal_(m.theta.weight)
+    m.mark_seen([0, 1, 2])
+    tok = torch.zeros(5, 4, 8)
+    m.eval()
+    om = m.omega(tok, {"u": torch.arange(5)})
+    assert torch.allclose(om[:3], m.theta.weight[:3].softmax(-1))
+    mean = m.theta.weight[:3].mean(0).softmax(-1)
+    assert torch.allclose(om[3], mean) and torch.allclose(om[4], mean)
+    m.train()                                            # training: every customer uses its own weights
+    assert torch.allclose(m.omega(tok, {"u": torch.arange(5)}), m.theta.weight.softmax(-1))
