@@ -1,0 +1,124 @@
+{
+  "dataset": "criteo_w12h",
+  "n_shards_used": 8,
+  "neg_rate": 0.01,
+  "seed": 2,
+  "window_hours": 12.0,
+  "protocols": {
+    "chronological": {
+      "n_train_rows_sampled": 1011793,
+      "n_train_positives": 158834,
+      "n_val": 20421186,
+      "n_test": 20121228,
+      "conversion": {
+        "recency_frequency": {
+          "val": {
+            "pr_auc": 0.006465080109472866,
+            "roc_auc": 0.7421688190917534,
+            "base_rate": 0.0016859941435330935,
+            "top_decile_conversion_rate": 0.006158798777152556,
+            "top_decile_lift": 3.6529182505026108,
+            "top_decile_gain": 0.3652918966018008
+          },
+          "test": {
+            "pr_auc": 0.006897001849278328,
+            "roc_auc": 0.7447590490623459,
+            "base_rate": 0.00187563104995381,
+            "top_decile_conversion_rate": 0.006719271137997031,
+            "top_decile_lift": 3.5824055792649108,
+            "top_decile_gain": 0.35824059353471116
+          }
+        },
+        "gbdt": {
+          "val": {
+            "pr_auc": 0.020850463548894818,
+            "roc_auc": 0.8443419745615925,
+            "balanced_accuracy": 0.5450338507572027,
+            "f1": 0.06893054071844011,
+            "binary_cross_entropy": 0.010771718112015318,
+            "brier": 0.001668435184755055,
+            "expected_calibration_error": 0.00029557066143062294,
+            "base_rate": 0.0016859941435330935,
+            "top_decile_conversion_rate": 0.008957362425989867,
+            "top_decile_lift": 5.312807556507415,
+            "top_decile_gain": 0.5312808597153645
+          },
+          "test": {
+            "pr_auc": 0.02213635325191764,
+            "roc_auc": 0.8433435637307684,
+            "balanced_accuracy": 0.5500004406248844,
+            "f1": 0.07111354109713869,
+            "binary_cross_entropy": 0.011812255449071933,
+            "brier": 0.0018561269511546572,
+            "expected_calibration_error": 0.000338731416913591,
+            "base_rate": 0.00187563104995381,
+            "top_decile_conversion_rate": 0.009963108617117343,
+            "top_decile_lift": 5.311870166236957,
+            "top_decile_gain": 0.5311870694223635
+          },
+          "threshold_from_val": 0.03991980340557223,
+          "fit_seconds": 208.2
+        }
+      },
+      "campaign": {}
+    },
+    "user_disjoint": {
+      "n_train_rows_sampled": 1042174,
+      "n_train_positives": 162013,
+      "n_val": 18882244,
+      "n_test": 18878625,
+      "conversion": {
+        "recency_frequency": {
+          "val": {
+            "pr_auc": 0.006325949228361362,
+            "roc_auc": 0.7335686462987585,
+            "base_rate": 0.0018239357567882291,
+            "top_decile_conversion_rate": 0.006481219134372228,
+            "top_decile_lift": 3.5534251194159463,
+            "top_decile_gain": 0.35534262485482
+          },
+          "test": {
+            "pr_auc": 0.006354913384668517,
+            "roc_auc": 0.7318969584926249,
+            "base_rate": 0.001830165067636017,
+            "top_decile_conversion_rate": 0.006415190085297503,
+            "top_decile_lift": 3.505252175741645,
+            "top_decile_gain": 0.35052531041069723
+          }
+        },
+        "gbdt": {
+          "val": {
+            "pr_auc": 0.023759215599423063,
+            "roc_auc": 0.8466688397452079,
+            "balanced_accuracy": 0.5445628989959028,
+            "f1": 0.07523675484840534,
+            "binary_cross_entropy": 0.011455171969394969,
+            "brier": 0.0017995361934425287,
+            "expected_calibration_error": 3.447107741817058e-05,
+            "base_rate": 0.0018239357567882291,
+            "top_decile_conversion_rate": 0.009793854016338095,
+            "top_decile_lift": 5.36962663289419,
+            "top_decile_gain": 0.5369628339140534
+          },
+          "test": {
+            "pr_auc": 0.02471345216590213,
+            "roc_auc": 0.8465113005417451,
+            "balanced_accuracy": 0.5440499875966474,
+            "f1": 0.07490062736458981,
+            "binary_cross_entropy": 0.011486332896002637,
+            "brier": 0.0018048086755944309,
+            "expected_calibration_error": 3.6945624434390066e-05,
+            "base_rate": 0.001830165067636017,
+            "top_decile_conversion_rate": 0.009896904595301672,
+            "top_decile_lift": 5.407656812117653,
+            "top_decile_gain": 0.5407658244334462
+          },
+          "threshold_from_val": 0.03579626891887837,
+          "fit_seconds": 256.6
+        }
+      },
+      "campaign": {}
+    }
+  },
+  "seconds": 729.2
+}
