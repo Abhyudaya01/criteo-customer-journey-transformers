@@ -26,3 +26,22 @@ D=/content/drive/MyDrive/DATA612_data
 python scripts/train_transformer.py --model lu_kannan --data-dir $D/processed/criteo_w12h --seed 1 \
     --out-dir $D/results/script/lu_kannan --save-predictions $D/predictions
 ```
+
+Benchmark datasets (proposal: models x datasets table). `notebooks/colab/data_prep/` builds
+`retailrocket_w12h`, `taobao_w3h` and `yoochoose_w5m` in the same format as Criteo, so the same
+scripts run on them. Use 14 windows of history on every dataset (`--lookback-windows 14`), keep
+each dataset's predictions in its own folder, and score each folder into its own table:
+
+```bash
+B=retailrocket_w12h          # or taobao_w3h, yoochoose_w5m
+for m in lu_kannan itransformer patchtst lstm; do
+  python scripts/train_transformer.py --model $m --data-dir $D/processed/$B --lookback-windows 14 \
+      --seed 1 --out-dir $D/results/benchmarks/$B/$m --save-predictions $D/predictions/$B
+done
+python scripts/run_baselines.py --data-dir $D/processed/$B --neg-rate 0.01 \
+    --out-dir $D/results/benchmarks/$B --save-predictions $D/predictions/$B
+for sp in chrono_test user_test; do
+  python scripts/evaluate_predictions.py --data-dir $D/processed/$B --split $sp \
+      --pred-dir $D/predictions/$B --out-dir $D/results/benchmarks/$B/eval
+done
+```
