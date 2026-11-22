@@ -43,7 +43,8 @@ POSITION_COLUMNS = ["uid", "window", "label_window", "windows_since_active", "is
 class WindowData:
     def __init__(self, data_dir: Path, lookback_hours: float = 168, neg_rate: float = 0.01,
                  neg_seed: int = 42, data_seed: int = 42, history_features: bool = True,
-                 hist_drop=("day_index",), max_shards: int | None = None, log=print):
+                 hist_drop=("day_index",), max_shards: int | None = None, log=print,
+                 lookback_windows: int | None = None):
         t0 = time.time()
         self.data_dir = Path(data_dir)
         self.meta = load_meta(self.data_dir)
@@ -51,10 +52,15 @@ class WindowData:
         self.n_campaigns = int(self.meta["n_campaigns"])
         self.window_hours = float(self.meta.get("window_hours", 12))
         self.target_hours = float(self.meta.get("target_hours", self.window_hours))
-        lb = lookback_hours / self.window_hours
-        if abs(lb - round(lb)) > 1e-9:
-            raise ValueError(f"lookback {lookback_hours}h is not a whole number of {self.window_hours:g}h windows")
-        self.lookback = int(round(lb))
+        if lookback_windows is not None:          # benchmarks: same number of tokens on every dataset
+            if lookback_windows < 1:
+                raise ValueError("lookback_windows must be at least 1")
+            self.lookback = int(lookback_windows)
+        else:
+            lb = lookback_hours / self.window_hours
+            if abs(lb - round(lb)) > 1e-9:
+                raise ValueError(f"lookback {lookback_hours}h is not a whole number of {self.window_hours:g}h windows")
+            self.lookback = int(round(lb))
         self.per_day = max(1, int(round(24 / self.window_hours)))
         self.neg_rate, self.data_seed = neg_rate, data_seed
         self.hist_cols = [c for c in FEATURE_COLUMNS if c not in hist_drop] if history_features else []

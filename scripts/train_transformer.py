@@ -38,7 +38,12 @@ seeds (scripts/zaratan/baselines_seeds.sbatch): each seed is a different negativ
 Colab runs in results/tables/colab_v2/ (LSTM: with ``--epochs 8``).
 
 Lookback is in hours (default 168 = 7 days): 14 windows of 12h, or 28 windows of 6h, so the 6h
-model sees the same history span as the 12h one.
+model sees the same history span as the 12h one. For the benchmark datasets (Retailrocket 12h,
+Taobao 3h, YOOCHOOSE 5 min; built by notebooks/colab/data_prep/) use ``--lookback-windows 14``,
+so every dataset gives the models the same number of tokens as Criteo:
+
+    python scripts/train_transformer.py --model lu_kannan --data-dir .../processed/taobao_w3h \\
+        --lookback-windows 14 --seed 1 --save-predictions .../predictions/taobao_w3h
 
 Outputs (``--out-dir``, default results/tables/<model>_<dataset>/):
     raw/<protocol>_<name>[_h<heads>]_seed<seed>.json   one run: conversion (+ campaign) metrics
@@ -114,7 +119,11 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--seed", type=int, default=1, help="negative sample and model seed")
     ap.add_argument("--model-seed", type=int, default=None, help="model seed if different from --seed")
     ap.add_argument("--neg-rate", type=float, default=0.01)
-    ap.add_argument("--lookback-hours", type=float, default=168)
+    lb = ap.add_mutually_exclusive_group()
+    lb.add_argument("--lookback-hours", type=float, default=168,
+                    help="history span in hours (Criteo: 168 = 14 windows of 12h or 28 of 6h)")
+    lb.add_argument("--lookback-windows", type=int, default=None,
+                    help="history length in windows instead (benchmarks: 14 on every dataset)")
     ap.add_argument("--no-history-features", action="store_true")
     ap.add_argument("--heads", type=int, nargs="+", default=[MAIN_HEADS],
                     help="attention heads; several values = head ablation (ignored for lstm)")
@@ -170,8 +179,13 @@ def resolve(p: Path | None) -> Path | None:
     return None if p is None else (p if p.is_absolute() else REPO_ROOT / p)
 
 
+def hours_label(h: float) -> str:
+    """12 -> '12h', 3 -> '3h', 5/60 -> '5m' (YOOCHOOSE)."""
+    return f"{round(h * 60)}m" if h < 1 else f"{h:g}h"
+
+
 def window_suffix(data: WindowData) -> str:
-    return "" if data.window_hours == data.target_hours else f"_w{data.window_hours:g}h"
+    return "" if data.window_hours == data.target_hours else f"_w{hours_label(data.window_hours)}"
 
 
 def run_name(args, data: WindowData, v: Variant) -> str:
@@ -239,8 +253,8 @@ def save_predictions(out_dir: Path, name: str, seed: int, protocol: str, data: W
 
 def history_label(data: WindowData) -> str:
     """Input representation for the results table, e.g. w12h_14lags or w6h_28lags_in_w12h."""
-    lab = f"w{data.window_hours:g}h_{data.lookback}lags"
-    return lab if data.window_hours == data.target_hours else f"{lab}_in_w{data.target_hours:g}h"
+    lab = f"w{hours_label(data.window_hours)}_{data.lookback}lags"
+    return lab if data.window_hours == data.target_hours else f"{lab}_in_w{hours_label(data.target_hours)}"
 
 
 def write_meta(pred_path: Path, **meta) -> Path | None:
@@ -353,7 +367,7 @@ def main(argv=None) -> None:
 
     data = WindowData(data_dir, lookback_hours=args.lookback_hours, neg_rate=args.neg_rate,
                       neg_seed=args.seed, history_features=not args.no_history_features,
-                      max_shards=args.max_shards)
+                      max_shards=args.max_shards, lookback_windows=args.lookback_windows)
     for prot in args.protocols:
         m = data.split_masks(prot)
         tr = data.train_sample(m)

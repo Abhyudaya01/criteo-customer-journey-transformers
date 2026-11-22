@@ -233,6 +233,33 @@ def test_prediction_names():
         tt.parse_args(["--data-dir", "x", "--heads", "1", "4", "--pred-name", "one"])
 
 
+def test_lookback_in_windows_for_benchmarks(datasets):
+    """--lookback-windows fixes the token count whatever the window length (Taobao 3h, YOOCHOOSE 5 min)."""
+    quiet = {"log": lambda *_: None, "history_features": False}
+    d = WindowData(datasets["d12"], lookback_windows=5, **quiet)
+    assert d.lookback == 5
+    b = d.make_batch(np.arange(64))
+    assert tuple(b["x"].shape[:2]) == (64, 5)
+    assert WindowData(datasets["d6"], lookback_windows=14, **quiet).lookback == 14     # 6h data, 14 tokens
+    with pytest.raises(ValueError):
+        WindowData(datasets["d12"], lookback_hours=18, **quiet)                     # 1.5 windows of 12h
+
+
+def test_short_window_labels():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tt2", REPO / "scripts" / "train_transformer.py")
+    tt = importlib.util.module_from_spec(spec)
+    sys.modules["tt2"] = tt
+    spec.loader.exec_module(tt)
+    assert [tt.hours_label(h) for h in (12, 6, 3, 5 / 60)] == ["12h", "6h", "3h", "5m"]
+
+    class D:
+        window_hours, target_hours, lookback = 5 / 60, 5 / 60, 14
+    assert tt.history_label(D()) == "w5m_14lags"
+    with pytest.raises(SystemExit):                      # hours or windows, not both
+        tt.parse_args(["--data-dir", "x", "--lookback-hours", "168", "--lookback-windows", "14"])
+
+
 def test_lu_kannan_unseen_customers_get_mean_weights():
     from src.models.lu_kannan import LuKannanTransformer
     torch.manual_seed(0)
