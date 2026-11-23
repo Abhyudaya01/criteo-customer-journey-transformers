@@ -1,0 +1,80 @@
+{
+  "python": "3.11.17",
+  "torch": "2.14.1+cu130",
+  "device": null,
+  "bf16": true,
+  "data_dir": "data/processed/criteo_w12h",
+  "window_hours": 12.0,
+  "target_hours": 12.0,
+  "lookback": 14,
+  "history_features": [
+    "windows_since_active",
+    "is_active",
+    "cur_impressions",
+    "cur_clicks",
+    "cur_campaigns",
+    "cum_impressions",
+    "cum_clicks",
+    "cum_conversions",
+    "cum_active_windows",
+    "cum_cost",
+    "windows_since_first",
+    "windows_since_conversion",
+    "click_rate",
+    "slot_of_day"
+  ],
+  "train_config": {
+    "epochs": 10,
+    "patience": 2,
+    "batch": 1024,
+    "eval_batch": 16384,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "campaign_loss_weight": 0.1,
+    "grad_clip": 1.0,
+    "optimizer": "adamw",
+    "shuffle": "numpy"
+  },
+  "model": "lu_kannan",
+  "protocols": [
+    "chronological",
+    "user_disjoint"
+  ],
+  "seed": 2,
+  "model_seed": null,
+  "neg_rate": 0.01,
+  "lookback_hours": 168,
+  "no_history_features": false,
+  "heads": [
+    4
+  ],
+  "top_campaigns": 100,
+  "weighting": [
+    "per_user"
+  ],
+  "patches": [
+    [
+      2,
+      2
+    ]
+  ],
+  "lstm_hidden": 64,
+  "d_model": 64,
+  "layers": 2,
+  "dropout": 0.1,
+  "no_copy_history": false,
+  "campaign_loss_weight": 0.1,
+  "epochs": 10,
+  "patience": 2,
+  "batch": null,
+  "eval_batch": 16384,
+  "lr": 0.001,
+  "campaign_eval_max": 200000,
+  "skip_campaign_eval": false,
+  "max_shards": null,
+  "out_dir": null,
+  "save_predictions": "results/predictions",
+  "pred_name": null,
+  "checkpoint_dir": null,
+  "force": false
+}
